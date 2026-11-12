@@ -45,13 +45,48 @@ function programLookSignature(snap) {
 }
 
 let _programPendingCache = { t: 0, val: false };
+// Look settings of every source that reach the projectors outside cue snapshots (generator
+// speed/scale/palette, ISF parameters, mirroring). Time-based values (simTime, playback
+// position) are deliberately left out so held generators and videos keep moving.
+const HELD_SHADER_LOOK_KEYS = ['playing', 'speed', 'scale', 'detail', 'temp', 'palette', 'mirrorX'];
+
+function captureSourceLooks() {
+  const out = { shaders: {}, isf: {}, mirror: {} };
+  for (const src of state.sources || []) {
+    if (!src || !src.id) continue;
+    if (src.kind === 'shader') {
+      const o = {};
+      for (const k of HELD_SHADER_LOOK_KEYS) o[k] = src[k];
+      out.shaders[src.id] = o;
+    } else if (src.kind === 'isf') {
+      out.isf[src.id] = { isfValues: JSON.parse(JSON.stringify(src.isfValues || {})), mirrorX: !!src.mirrorX };
+    } else if (src.kind === 'video' || src.kind === 'text') {
+      out.mirror[src.id] = !!src.mirrorX;
+    }
+  }
+  return out;
+}
+
+function applySourceLooks(looks) {
+  if (!looks) return;
+  for (const src of state.sources || []) {
+    if (!src || !src.id) continue;
+    if (src.kind === 'shader' && looks.shaders[src.id]) Object.assign(src, looks.shaders[src.id]);
+    else if (src.kind === 'isf' && looks.isf[src.id]) {
+      src.isfValues = JSON.parse(JSON.stringify(looks.isf[src.id].isfValues || {}));
+      src.mirrorX = looks.isf[src.id].mirrorX;
+    } else if (looks.mirror[src.id] !== undefined) src.mirrorX = looks.mirror[src.id];
+  }
+}
+
 function hasPendingPreviewEdits(force = false) {
   if (!isProgramHeld()) return false;
   const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
   if (!force && now - _programPendingCache.t < 400) return _programPendingCache.val;
   const p = state.program;
   if (!p._sig) p._sig = programLookSignature(p.snap);
-  const val = programLookSignature(captureSceneSnapshot()) !== p._sig;
+  const val = programLookSignature(captureSceneSnapshot()) !== p._sig
+    || (p._srcSig !== undefined && JSON.stringify(captureSourceLooks()) !== p._srcSig);
   _programPendingCache = { t: now, val };
   return val;
 }
@@ -65,6 +100,8 @@ function holdProgram(opts = {}) {
   p.snap = snap;
   p.scene = instantiateRuntimeScene(snap);
   p._sig = programLookSignature(snap);
+  p.srcLook = captureSourceLooks();
+  p._srcSig = JSON.stringify(p.srcLook);
   p.activeCueId = state.activeCueId || null;
   p.sinceMs = Date.now();
   _programPendingCache = { t: 0, val: false };
@@ -81,6 +118,8 @@ function releaseProgram(opts = {}) {
   if (!p.held) return false;
   p.held = false;
   p.snap = null;
+  p.srcLook = null;
+  p._srcSig = undefined;
   p.scene = null;
   p._sig = '';
   _programPendingCache = { t: 0, val: false };
@@ -98,6 +137,8 @@ function takeProgram(fadeSec = null) {
   const dur = Math.max(0, fadeSec === null ? Number(p.takeFadeSec) || 0 : Number(fadeSec) || 0);
   p.held = false;
   p.snap = null;
+  p.srcLook = null;
+  p._srcSig = undefined;
   p.scene = null;
   p._sig = '';
   _programPendingCache = { t: 0, val: false };
@@ -131,6 +172,7 @@ function revertPreviewToProgram(opts = {}) {
   const filter = { geometry: true, media: true, gradingFx: true, masks: true, followspot: false, modulators: true };
   if (typeof applySelectiveSceneSnapshot === 'function') applySelectiveSceneSnapshot(snap, filter, false);
   else applySceneSnapshotImmediate(snap);
+  applySourceLooks(p.srcLook);
   state.activeCueId = p.activeCueId;
   state.crossfade.active = false;
   state.crossfade.mix = 1.0;
@@ -195,12 +237,20 @@ function applyHeldProgramToSyncPayload(payload) {
   payload.masterFxChain = cloneFxChain(sc.masterFxChain || []);
   if (p.snap.mixbus) payload.mixbusState = p.snap.mixbus;
   const sh = p.snap.shaders || {};
+  const look = p.srcLook || { shaders: {}, isf: {}, mirror: {} };
   for (const id of Object.keys(payload.shaders || {})) {
-    if (sh[id]) payload.shaders[id] = { ...payload.shaders[id], ...sh[id] };
+    if (look.shaders[id]) payload.shaders[id] = { ...payload.shaders[id], ...look.shaders[id] };
+    else if (sh[id]) payload.shaders[id] = { ...payload.shaders[id], ...sh[id] };
   }
   const isf = p.snap.isfParams || {};
   for (const id of Object.keys(payload.isfRuntimeStates || {})) {
-    if (isf[id] && isf[id].isfValues) payload.isfRuntimeStates[id] = { ...payload.isfRuntimeStates[id], isfValues: isf[id].isfValues };
+    if (look.isf[id]) payload.isfRuntimeStates[id] = { ...payload.isfRuntimeStates[id], isfValues: look.isf[id].isfValues, mirrorX: look.isf[id].mirrorX };
+    else if (isf[id] && isf[id].isfValues) payload.isfRuntimeStates[id] = { ...payload.isfRuntimeStates[id], isfValues: isf[id].isfValues };
+  }
+  for (const bucket of ['videos', 'textRuntimeStates']) {
+    for (const id of Object.keys(payload[bucket] || {})) {
+      if (look.mirror[id] !== undefined) payload[bucket][id] = { ...payload[bucket][id], mirrorX: look.mirror[id] };
+    }
   }
   return payload;
 }

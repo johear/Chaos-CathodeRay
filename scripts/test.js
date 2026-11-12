@@ -2505,6 +2505,22 @@ const vmScript = `
     const payload = JSON.parse(buildBetaReportPayload(rep));
     assert(payload.app === 'chaos-cathoderay' && payload.id === getBetaReportId() && payload.report === rep && payload.website === '', 'Server payload matches chaos-report.php');
     assert(mail.url.startsWith('mailto:' + APP_FEEDBACK_EMAIL + '?subject=' + encodeURIComponent(APP_REPORT_SUBJECT + ' ' + getBetaReportId())) && decodeURIComponent(mail.url).includes('clicked GO') && !mail.truncated, 'Email fallback uses the same subject and report');
+    // Blind holds every source's look (generator settings, ISF parameters, mirroring), not just
+    // what the cue snapshot captured; time keeps running; Revert restores; TAKE releases.
+    state.program = undefined; ensureProgramState();
+    const gen = state.sources.find(x => x.kind === 'shader');
+    const speed0 = gen.speed;
+    holdProgram({ silent: true });
+    gen.speed = speed0 + 0.77; gen.simTime = (gen.simTime || 0) + 5;
+    assert(hasPendingPreviewEdits(true), 'A generator setting change counts as a pending Preview edit');
+    const plHeld = applyHeldProgramToSyncPayload({ shaders: { [gen.id]: { speed: gen.speed, simTime: gen.simTime } }, isfRuntimeStates: {}, videos: {}, textRuntimeStates: {} });
+    assert(plHeld.shaders[gen.id].speed === speed0 && plHeld.shaders[gen.id].simTime === gen.simTime, 'Projectors keep the held generator setting while time keeps running');
+    revertPreviewToProgram();
+    assert(gen.speed === speed0 && !hasPendingPreviewEdits(true), 'Revert restores generator settings too');
+    gen.speed = speed0 + 0.2; takeProgram(0);
+    assert(!isProgramHeld() && gen.speed === speed0 + 0.2, 'TAKE releases the hold with the edited setting');
+    state.crossfade.active = false; state.crossfade.fromScene = null; gen.speed = speed0;
+
     // Perf governor: a browser frame cap (steady 33.3 ms whatever the quality) is detected and
     // quality goes back to 100 %; a real GPU bottleneck (frames get faster at lower scale) is not a cap.
     const resetGov = () => Object.assign(perfGovernor, { emaMs: 16.7, jitter: 0, scale: 1, ceiling: 1, ceilingUntil: 0, goodSince: 0, lastAdjust: 0, emaAtStart: 0, floorSince: 0, capped: false, capMs: 0 });
