@@ -834,6 +834,12 @@ function initRigWorkspaceControls() {
       return;
     }
 
+    // Lines look: click an underlined dimension to type an exact size.
+    if (xf.mode === 'orbit3d' && e.button === 0 && typeof getVenueViewLook === 'function'
+      && getVenueViewLook(ensureStagePlanState()) === 'lines' && tryBeginLinesDimensionEdit(mx, my, cvs)) {
+      return;
+    }
+
     // Point calibration in the 3D rig: left clicks add pins.
     if (xf.mode === 'orbit3d' && state.projAlign && state.projAlign.active && e.button === 0 && !e.altKey && typeof addAlignPinFromRay === 'function') {
       if (typeof tryBeginAlignPinDrag === 'function' && tryBeginAlignPinDrag(mx, my, cvs)) { renderRigWorkspaceCanvas(); return; }

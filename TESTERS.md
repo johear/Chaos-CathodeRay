@@ -91,7 +91,9 @@ Pick whichever matches your work; even ten minutes helps.
 
 **Architectural mapping**
 - [ ] Start from *Architectural mapping*. Look at the facade in **Front · Lines**, select a face and choose **Map onto** it.
-- [ ] Try **📐 Align by points**: click 4–8 known corners in 3D, then nudge the crosshairs with the arrow keys.
+- [ ] Try **📐 Align by points**: click 4–8 known corners in 3D. Then switch to **POV** for that projector and **drag each crosshair** onto the real corner, or nudge with the arrow keys.
+- [ ] In **Front · Lines**, click an underlined size (width, height, height above the floor, projector height) and **type an exact value**.
+- [ ] With two projectors and multi-projector output on, **Map onto** a facade face. Each projector gets its own exactly fitted part.
 
 **Everyone**
 - [ ] Is the **Show Check** right? Do its **Fix** buttons fix the problem?
@@ -100,9 +102,8 @@ Pick whichever matches your work; even ten minutes helps.
 
 ## 8. Known limitations in 0.1
 
-- While Blind, shader settings that aren't stored in a cue still change on stage.
-- Point calibration shows one crosshair at a time, and you move it with the arrow keys only (no dragging yet).
-- Mapping onto a set part uses one projector.
+- On battery, Chrome's Energy Saver limits pages to **30 fps**. The FPS badge then shows **POWER CAP**. For shows, plug in the power, or turn Energy Saver off (Chrome Settings → Performance).
+- The editable top **Plan** in BUILD is still a separate 2D drawing from the 3D views.
 - When you open a show on another computer, its media must be relinked. Use **Pack Show** to avoid this.
 - **Send** needs an internet connection. Offline, use Email instead, Copy or Download.
 

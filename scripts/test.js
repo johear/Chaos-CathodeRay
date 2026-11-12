@@ -2543,6 +2543,23 @@ const vmScript = `
     state.surfaces = state.surfaces.filter(sf => !(sf.linkObject && sf.linkObject.id === facade.id));
     assert(state.surfaces.length === nSurf0, 'Test surfaces cleaned up');
 
+    // Lines look: typed dimensions edit the real object; off-axis parts aren't sized from a view.
+    const blkD = addVenuePart('block', { posM: [4, 0, 4], sizeM: [2, 1, 3], yawDeg: 0 });
+    const selD = { kind: 'venue_part', id: blkD.id };
+    assert.deepStrictEqual(getLinesDimensionEdit(selD, 'x'), { target: 'part', id: blkD.id, field: 'size', idx: 0 }, 'Front view width = part width');
+    blkD.yawDeg = 90;
+    assert.strictEqual(getLinesDimensionEdit(selD, 'x').idx, 2, 'Turned 90°: the front-view width is the part depth');
+    blkD.yawDeg = 30;
+    assert.strictEqual(getLinesDimensionEdit(selD, 'x'), null, 'Off-axis part: width not editable from the view');
+    applyLinesDimensionEdit(getLinesDimensionEdit(selD, 'y'), 2.4);
+    applyLinesDimensionEdit(getLinesElevationEdit(selD), 0.5);
+    assert(blkD.sizeM[1] === 2.4 && blkD.posM[1] === 0.5, 'Typed height and elevation applied');
+    const scrD = ensureMultiProjectorState().screens[0];
+    const aimD = [...scrD.aimM];
+    applyLinesDimensionEdit({ target: 'projector', id: scrD.index, floor: 0 }, 4.2);
+    assert(Math.abs(scrD.posM[1] - 4.2) < 1e-9 && JSON.stringify(scrD.aimM) === JSON.stringify(aimD), 'Projector height typed; it keeps aiming at the same point');
+    removeVenuePart(blkD.id);
+
     // Calibration: POV crosshair pixel mapping round-trips; crosshair belongs to one projector.
     const fr = { sx: 0.8, sy: 1 };
     const px = alignRasterToPx(0.3, 0.7, fr, 800, 450);

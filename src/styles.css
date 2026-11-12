@@ -3989,3 +3989,4 @@
     #boot-veil .boot-bar span { display: block; width: 40%; height: 100%; background: #6fd3ff; animation: boot-slide 1.1s ease-in-out infinite; }
     @keyframes boot-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
     @media (prefers-reduced-motion: reduce) { #boot-veil .boot-bar span { animation: none; width: 100%; opacity: 0.5; } }
+    .lines-dim-input { position: fixed; z-index: 90; width: 88px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--warm, #ffcb7d); background: #0a0e16; color: #ffcb7d; font: 700 11px ui-monospace, SFMono-Regular, Menlo, monospace; text-align: center; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6); }
