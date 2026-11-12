@@ -3991,10 +3991,31 @@
     .about-legal { padding: 8px 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.04); }
     .about-links a.btn { text-decoration: none; }
     a.tester-guide-link { text-decoration: none; }
+    #fps-badge[data-capped="1"]::after { content: "POWER CAP"; color: var(--warm, #ffcb7d); }
+    /* Loading veil: visible from first paint until boot finishes */
+    #boot-veil { position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center; background: #070b13; color: #e6edf7; transition: opacity 0.25s ease; }
+    #boot-veil.done { opacity: 0; pointer-events: none; }
+    #boot-veil .boot-card { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 24px; text-align: center; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    #boot-veil .boot-title { font-size: 22px; font-weight: 700; letter-spacing: 0.03em; }
+    #boot-veil .brand-diamond { color: #6fd3ff; }
+    #boot-veil .boot-sub { font-size: 12.5px; color: #93a3ba; max-width: 340px; line-height: 1.5; }
+    #boot-veil .boot-bar { width: 220px; height: 3px; border-radius: 2px; background: rgba(111, 211, 255, 0.15); overflow: hidden; }
+    #boot-veil .boot-bar span { display: block; width: 40%; height: 100%; background: #6fd3ff; animation: boot-slide 1.1s ease-in-out infinite; }
+    @keyframes boot-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+    @media (prefers-reduced-motion: reduce) { #boot-veil .boot-bar span { animation: none; width: 100%; opacity: 0.5; } }
 
   </style>
 </head>
 <body>
+  <!-- Shown from the first paint until the app has booted (the single file is large online). -->
+  <div id="boot-veil" role="status" aria-live="polite">
+    <div class="boot-card">
+      <div class="boot-title"><span class="brand-diamond" aria-hidden="true">◈</span> Chaos CathodeRay</div>
+      <div class="boot-sub">Loading the studio… the first visit online can take a few seconds.</div>
+      <div class="boot-bar" aria-hidden="true"><span></span></div>
+      <noscript><div class="boot-sub">Chaos CathodeRay needs JavaScript and a recent desktop Chrome or Edge.</div></noscript>
+    </div>
+  </div>
   <div id="projector-banner">
     CHAOS CATHODERAY PROJECTOR — Click Here or Press <strong>F</strong> for Fullscreen • Connected to Studio Controller
   </div>
@@ -16347,28 +16368,59 @@ const glCaps = {
 // ----------------------------------------------------------------------------
 const perfGovernor = {
   emaMs: 16.7,
+  jitter: 0,           // average |frame interval − ema|: tiny when the browser paces frames to a fixed rate
   scale: 1.0,          // 0.5 .. 1.0, applied to generator sources & previz
   ceiling: 1.0,        // last scale that proved too slow is avoided for a while
   ceilingUntil: 0,
   goodSince: 0,
-  lastAdjust: 0
+  lastAdjust: 0,
+  emaAtStart: 0,       // frame interval when the governor started lowering quality
+  floorSince: 0,       // how long we've sat at the lowest scale without it helping
+  capped: false,       // the browser itself limits the frame rate (e.g. battery saving → 30 fps)
+  capMs: 0
 };
 
+// Lowering resolution only helps when the GPU is the bottleneck. When the browser caps the
+// page (Chrome Energy Saver, low battery, background throttling), frames arrive every 33.3 ms
+// no matter what — so if dropping to the lowest scale didn't change a steady interval at all,
+// we're capped: go back to full quality instead of blurring the picture for nothing.
 function updatePerfGovernor(dtMs, nowMs) {
   const g = perfGovernor;
-  g.emaMs = g.emaMs * 0.9 + clamp(dtMs, 4, 120) * 0.1;
+  const dt = clamp(dtMs, 4, 120);
+  g.jitter = g.jitter * 0.9 + Math.abs(dt - g.emaMs) * 0.1;
+  g.emaMs = g.emaMs * 0.9 + dt * 0.1;
   const mode = state.renderQuality || 'auto';
   if (mode === 'full') { g.scale = 1.0; return g.scale; }
   if (mode === 'fast') { g.scale = 0.5; return g.scale; }
+  if (g.capped) {
+    if (g.emaMs < g.capMs * 0.8) { g.capped = false; g.emaAtStart = 0; g.lastAdjust = nowMs; }        // cap lifted (plugged in)
+    else if (g.emaMs > g.capMs * 1.15) { g.capped = false; g.emaAtStart = 0; g.lastAdjust = nowMs; } // genuinely slower than the cap
+    else { g.scale = 1.0; return g.scale; }
+  }
   if (nowMs - g.lastAdjust < 700) return g.scale;
   if (nowMs > g.ceilingUntil) g.ceiling = 1.0;
   if (g.emaMs > 19.5 && g.scale > 0.5) {
+    if (g.scale >= 1.0 || !g.emaAtStart) g.emaAtStart = g.emaMs;
     g.ceiling = g.scale;
     g.ceilingUntil = nowMs + 12000;
     g.scale = Math.max(0.5, g.scale - 0.125);
     g.lastAdjust = nowMs;
     g.goodSince = 0;
+    g.floorSince = 0;
+  } else if (g.emaMs > 19.5 && g.scale <= 0.5) {
+    if (!g.floorSince) g.floorSince = nowMs;
+    const noBetter = g.emaAtStart > 0 && Math.abs(g.emaMs - g.emaAtStart) < g.emaAtStart * 0.08;
+    if (nowMs - g.floorSince > 3000 && noBetter && g.jitter < 2.5) {
+      g.capped = true;
+      g.capMs = g.emaMs;
+      g.scale = 1.0;
+      g.ceiling = 1.0;
+      g.ceilingUntil = 0;
+      g.floorSince = 0;
+      g.lastAdjust = nowMs;
+    }
   } else if (g.emaMs < 17.6) {
+    g.floorSince = 0;
     if (!g.goodSince) g.goodSince = nowMs;
     const next = Math.min(1.0, g.scale + 0.125);
     if (next > g.scale && nowMs - g.goodSince > 2500 && next < g.ceiling + 1e-6 && !(next >= g.ceiling && nowMs < g.ceilingUntil)) {
@@ -16380,6 +16432,11 @@ function updatePerfGovernor(dtMs, nowMs) {
     g.goodSince = 0;
   }
   return g.scale;
+}
+
+// 0 when not capped, otherwise the frame rate the browser allows (e.g. 30).
+function getBrowserFrameRateCap() {
+  return perfGovernor.capped && perfGovernor.capMs > 0 ? Math.round(1000 / perfGovernor.capMs) : 0;
 }
 
 function getAdaptiveRenderScale() {
@@ -41443,8 +41500,14 @@ function collectShowCheckItems() {
   const fps = typeof liveMeasuredFps !== 'undefined' ? Number(liveMeasuredFps) || 60 : 60;
   const now = Date.now();
   if (fps < 28 && !state.ecoMode) { if (!_showCheckLowFpsSince) _showCheckLowFpsSince = now; } else _showCheckLowFpsSince = 0;
-  if (_showCheckLowFpsSince && now - _showCheckLowFpsSince > 4000 && state.renderQuality !== 'fast') {
+  const browserCapped = typeof getBrowserFrameRateCap === 'function' && getBrowserFrameRateCap() > 0;
+  if (_showCheckLowFpsSince && now - _showCheckLowFpsSince > 4000 && state.renderQuality !== 'fast' && !browserCapped) {
     add('warn', 'fps', `Frame rate is low (${fps} FPS)`, 'Fast quality', () => { state.renderQuality = 'fast'; if (typeof showToast === 'function') showToast('Render quality: FAST (click the FPS badge to change)'); });
+  }
+  const capFps = typeof getBrowserFrameRateCap === 'function' ? getBrowserFrameRateCap() : 0;
+  if (capFps) {
+    add(isAnyOutputWindowOpen() ? 'warn' : 'info', 'fpscap', `The browser limits this page to ${capFps} fps — usually battery saving. Plug in the power, or turn off Energy Saver in Chrome Settings → Performance.`, 'How?',
+      () => { if (typeof showToast === 'function') showToast('Chrome: ⋮ → Settings → Performance → Energy Saver → off (or "only when unplugged"), and keep the laptop on mains power for shows.'); });
   }
   if (!isAnyOutputWindowOpen()) {
     add('info', 'output', 'No projector window open yet — the audience sees nothing', 'Open output',
@@ -56449,7 +56512,11 @@ function frameLoop(now) {
       const pct = Math.round((typeof getAdaptiveRenderScale === 'function' ? getAdaptiveRenderScale() : 1) * 100);
       fpsBadgeEl.textContent = state.ecoMode ? `${fps} ECO` : `${fps} FPS`;
       fpsBadgeEl.dataset.quality = q;
-      fpsBadgeEl.title = `Frame rate · render quality ${q.toUpperCase()} (${pct}% internal resolution for generators & 3D previz). Click to cycle Auto → Full → Fast.`;
+      const capFps = typeof getBrowserFrameRateCap === 'function' ? getBrowserFrameRateCap() : 0;
+      fpsBadgeEl.dataset.capped = capFps ? '1' : '';
+      fpsBadgeEl.title = capFps
+        ? `The browser is limiting this page to ${capFps} fps — usually battery saving (Chrome Energy Saver switches on at 20% battery). Plug in the power, or turn Energy Saver off in Chrome Settings → Performance. Quality stays at 100%.`
+        : `Frame rate · render quality ${q.toUpperCase()} (${pct}% internal resolution for generators & 3D previz). Click to cycle Auto → Full → Fast.`;
       fpsBadgeEl.dataset.res = pct < 100 ? `${pct}%` : '';
     }
     fpsAccum = 0;
@@ -56545,7 +56612,20 @@ function bootWebMapper() {
   requestAnimationFrame(frameLoop);
 }
 
-bootWebMapper();
+// The loading veil (body.html) covers the half-loaded page; lift it once the app is live —
+// even if boot throws, so a problem is visible instead of an endless "Loading…".
+function hideBootVeil() {
+  const veil = typeof document !== 'undefined' ? document.getElementById('boot-veil') : null;
+  if (!veil) return;
+  veil.classList.add('done');
+  setTimeout(() => veil.remove(), 260);
+}
+
+try {
+  bootWebMapper();
+} finally {
+  hideBootVeil();
+}
 
 })();
 

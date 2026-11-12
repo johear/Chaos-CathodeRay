@@ -2505,6 +2505,21 @@ const vmScript = `
     const payload = JSON.parse(buildBetaReportPayload(rep));
     assert(payload.app === 'chaos-cathoderay' && payload.id === getBetaReportId() && payload.report === rep && payload.website === '', 'Server payload matches chaos-report.php');
     assert(mail.url.startsWith('mailto:' + APP_FEEDBACK_EMAIL + '?subject=' + encodeURIComponent(APP_REPORT_SUBJECT + ' ' + getBetaReportId())) && decodeURIComponent(mail.url).includes('clicked GO') && !mail.truncated, 'Email fallback uses the same subject and report');
+    // Perf governor: a browser frame cap (steady 33.3 ms whatever the quality) is detected and
+    // quality goes back to 100 %; a real GPU bottleneck (frames get faster at lower scale) is not a cap.
+    const resetGov = () => Object.assign(perfGovernor, { emaMs: 16.7, jitter: 0, scale: 1, ceiling: 1, ceilingUntil: 0, goodSince: 0, lastAdjust: 0, emaAtStart: 0, floorSince: 0, capped: false, capMs: 0 });
+    state.renderQuality = 'auto';
+    resetGov();
+    let tSim = 0;
+    for (let k = 0; k < 600; k++) { tSim += 33.33; updatePerfGovernor(33.33, tSim); }
+    assert(perfGovernor.capped && perfGovernor.scale === 1 && getBrowserFrameRateCap() === 30, 'Steady 30 fps that lower quality cannot improve = browser cap; quality restored to 100%');
+    for (let k = 0; k < 200; k++) { tSim += 16.67; updatePerfGovernor(16.67, tSim); }
+    assert(!perfGovernor.capped && getBrowserFrameRateCap() === 0, 'Cap lifted when frames speed up again (plugged in)');
+    resetGov(); tSim = 0;
+    for (let k = 0; k < 900; k++) { const d = 12 + 22 * perfGovernor.scale; tSim += d; updatePerfGovernor(d, tSim); }
+    assert(!perfGovernor.capped && perfGovernor.scale < 1, 'A real GPU bottleneck still lowers quality (no false cap)');
+    resetGov();
+
     // Licence: AGPL identity, plugins stay the author's, legal notices carry copyright + attribution.
     assert(APP_LICENSE === 'AGPL-3.0-or-later' && APP_COPYRIGHT.includes("Jonathan O'Hear") && APP_ATTRIBUTION.startsWith('Based on Chaos CathodeRay ('), 'Licence identity: AGPL-3.0-or-later, copyright & attribution');
     const fxLic = registerCustomFxPlugin({ name: 'Lic Test FX', isfCode: '/*{"INPUTS":[{"NAME":"inputImage","TYPE":"image"}]}*/ void main(){ gl_FragColor = IMG_THIS_PIXEL(inputImage); }' });

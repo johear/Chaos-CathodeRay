@@ -108,8 +108,14 @@ function collectShowCheckItems() {
   const fps = typeof liveMeasuredFps !== 'undefined' ? Number(liveMeasuredFps) || 60 : 60;
   const now = Date.now();
   if (fps < 28 && !state.ecoMode) { if (!_showCheckLowFpsSince) _showCheckLowFpsSince = now; } else _showCheckLowFpsSince = 0;
-  if (_showCheckLowFpsSince && now - _showCheckLowFpsSince > 4000 && state.renderQuality !== 'fast') {
+  const browserCapped = typeof getBrowserFrameRateCap === 'function' && getBrowserFrameRateCap() > 0;
+  if (_showCheckLowFpsSince && now - _showCheckLowFpsSince > 4000 && state.renderQuality !== 'fast' && !browserCapped) {
     add('warn', 'fps', `Frame rate is low (${fps} FPS)`, 'Fast quality', () => { state.renderQuality = 'fast'; if (typeof showToast === 'function') showToast('Render quality: FAST (click the FPS badge to change)'); });
+  }
+  const capFps = typeof getBrowserFrameRateCap === 'function' ? getBrowserFrameRateCap() : 0;
+  if (capFps) {
+    add(isAnyOutputWindowOpen() ? 'warn' : 'info', 'fpscap', `The browser limits this page to ${capFps} fps — usually battery saving. Plug in the power, or turn off Energy Saver in Chrome Settings → Performance.`, 'How?',
+      () => { if (typeof showToast === 'function') showToast('Chrome: ⋮ → Settings → Performance → Energy Saver → off (or "only when unplugged"), and keep the laptop on mains power for shows.'); });
   }
   if (!isAnyOutputWindowOpen()) {
     add('info', 'output', 'No projector window open yet — the audience sees nothing', 'Open output',

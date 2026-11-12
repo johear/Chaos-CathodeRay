@@ -47,28 +47,59 @@ const glCaps = {
 // ----------------------------------------------------------------------------
 const perfGovernor = {
   emaMs: 16.7,
+  jitter: 0,           // average |frame interval − ema|: tiny when the browser paces frames to a fixed rate
   scale: 1.0,          // 0.5 .. 1.0, applied to generator sources & previz
   ceiling: 1.0,        // last scale that proved too slow is avoided for a while
   ceilingUntil: 0,
   goodSince: 0,
-  lastAdjust: 0
+  lastAdjust: 0,
+  emaAtStart: 0,       // frame interval when the governor started lowering quality
+  floorSince: 0,       // how long we've sat at the lowest scale without it helping
+  capped: false,       // the browser itself limits the frame rate (e.g. battery saving → 30 fps)
+  capMs: 0
 };
 
+// Lowering resolution only helps when the GPU is the bottleneck. When the browser caps the
+// page (Chrome Energy Saver, low battery, background throttling), frames arrive every 33.3 ms
+// no matter what — so if dropping to the lowest scale didn't change a steady interval at all,
+// we're capped: go back to full quality instead of blurring the picture for nothing.
 function updatePerfGovernor(dtMs, nowMs) {
   const g = perfGovernor;
-  g.emaMs = g.emaMs * 0.9 + clamp(dtMs, 4, 120) * 0.1;
+  const dt = clamp(dtMs, 4, 120);
+  g.jitter = g.jitter * 0.9 + Math.abs(dt - g.emaMs) * 0.1;
+  g.emaMs = g.emaMs * 0.9 + dt * 0.1;
   const mode = state.renderQuality || 'auto';
   if (mode === 'full') { g.scale = 1.0; return g.scale; }
   if (mode === 'fast') { g.scale = 0.5; return g.scale; }
+  if (g.capped) {
+    if (g.emaMs < g.capMs * 0.8) { g.capped = false; g.emaAtStart = 0; g.lastAdjust = nowMs; }        // cap lifted (plugged in)
+    else if (g.emaMs > g.capMs * 1.15) { g.capped = false; g.emaAtStart = 0; g.lastAdjust = nowMs; } // genuinely slower than the cap
+    else { g.scale = 1.0; return g.scale; }
+  }
   if (nowMs - g.lastAdjust < 700) return g.scale;
   if (nowMs > g.ceilingUntil) g.ceiling = 1.0;
   if (g.emaMs > 19.5 && g.scale > 0.5) {
+    if (g.scale >= 1.0 || !g.emaAtStart) g.emaAtStart = g.emaMs;
     g.ceiling = g.scale;
     g.ceilingUntil = nowMs + 12000;
     g.scale = Math.max(0.5, g.scale - 0.125);
     g.lastAdjust = nowMs;
     g.goodSince = 0;
+    g.floorSince = 0;
+  } else if (g.emaMs > 19.5 && g.scale <= 0.5) {
+    if (!g.floorSince) g.floorSince = nowMs;
+    const noBetter = g.emaAtStart > 0 && Math.abs(g.emaMs - g.emaAtStart) < g.emaAtStart * 0.08;
+    if (nowMs - g.floorSince > 3000 && noBetter && g.jitter < 2.5) {
+      g.capped = true;
+      g.capMs = g.emaMs;
+      g.scale = 1.0;
+      g.ceiling = 1.0;
+      g.ceilingUntil = 0;
+      g.floorSince = 0;
+      g.lastAdjust = nowMs;
+    }
   } else if (g.emaMs < 17.6) {
+    g.floorSince = 0;
     if (!g.goodSince) g.goodSince = nowMs;
     const next = Math.min(1.0, g.scale + 0.125);
     if (next > g.scale && nowMs - g.goodSince > 2500 && next < g.ceiling + 1e-6 && !(next >= g.ceiling && nowMs < g.ceilingUntil)) {
@@ -80,6 +111,11 @@ function updatePerfGovernor(dtMs, nowMs) {
     g.goodSince = 0;
   }
   return g.scale;
+}
+
+// 0 when not capped, otherwise the frame rate the browser allows (e.g. 30).
+function getBrowserFrameRateCap() {
+  return perfGovernor.capped && perfGovernor.capMs > 0 ? Math.round(1000 / perfGovernor.capMs) : 0;
 }
 
 function getAdaptiveRenderScale() {

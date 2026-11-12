@@ -4029,7 +4029,11 @@ function frameLoop(now) {
       const pct = Math.round((typeof getAdaptiveRenderScale === 'function' ? getAdaptiveRenderScale() : 1) * 100);
       fpsBadgeEl.textContent = state.ecoMode ? `${fps} ECO` : `${fps} FPS`;
       fpsBadgeEl.dataset.quality = q;
-      fpsBadgeEl.title = `Frame rate · render quality ${q.toUpperCase()} (${pct}% internal resolution for generators & 3D previz). Click to cycle Auto → Full → Fast.`;
+      const capFps = typeof getBrowserFrameRateCap === 'function' ? getBrowserFrameRateCap() : 0;
+      fpsBadgeEl.dataset.capped = capFps ? '1' : '';
+      fpsBadgeEl.title = capFps
+        ? `The browser is limiting this page to ${capFps} fps — usually battery saving (Chrome Energy Saver switches on at 20% battery). Plug in the power, or turn Energy Saver off in Chrome Settings → Performance. Quality stays at 100%.`
+        : `Frame rate · render quality ${q.toUpperCase()} (${pct}% internal resolution for generators & 3D previz). Click to cycle Auto → Full → Fast.`;
       fpsBadgeEl.dataset.res = pct < 100 ? `${pct}%` : '';
     }
     fpsAccum = 0;
@@ -4125,4 +4129,17 @@ function bootWebMapper() {
   requestAnimationFrame(frameLoop);
 }
 
-bootWebMapper();
+// The loading veil (body.html) covers the half-loaded page; lift it once the app is live —
+// even if boot throws, so a problem is visible instead of an endless "Loading…".
+function hideBootVeil() {
+  const veil = typeof document !== 'undefined' ? document.getElementById('boot-veil') : null;
+  if (!veil) return;
+  veil.classList.add('done');
+  setTimeout(() => veil.remove(), 260);
+}
+
+try {
+  bootWebMapper();
+} finally {
+  hideBootVeil();
+}

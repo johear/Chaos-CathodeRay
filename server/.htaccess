@@ -1,0 +1,12 @@
+# Chaos CathodeRay — upload next to Chaos-CathodeRay.html (same folder as chaos-report.php).
+# 1. Compress text files: the 2.6 MB app arrives as ~0.7 MB, so it opens about 4x sooner.
+# 2. Revalidate HTML on every visit: returning visitors get a fast "not modified" answer,
+#    and a newly uploaded version is picked up immediately.
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/css text/markdown application/javascript application/json image/svg+xml
+</IfModule>
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html?|md|txt)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>
