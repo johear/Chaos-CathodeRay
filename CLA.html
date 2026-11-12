@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chaos CathodeRay — Contributor licence agreement</title>
+<style>
+  :root {
+    --bg: #070b13; --panel: #0e1420; --ink: #e6edf7; --muted: #93a3ba; --line: rgba(255,255,255,0.09);
+    --brand: #6fd3ff; --warm: #ffcb7d; --emerald: #34e89e; --code-bg: rgba(111,211,255,0.08);
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f6f8fb; --panel: #ffffff; --ink: #141a24; --muted: #5a6577; --line: rgba(0,0,0,0.1);
+      --brand: #0a7fb5; --warm: #a8620a; --emerald: #0d8a5a; --code-bg: rgba(10,127,181,0.08);
+      color-scheme: light;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 16px 80px; }
+  header.hero { padding: 48px 0 24px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .mark { color: var(--brand); font-size: 22px; margin-right: 6px; }
+  h1 { font-size: clamp(26px, 5vw, 38px); line-height: 1.15; margin: 0 0 14px; letter-spacing: 0.01em; }
+  .hero p { margin: 8px 0; }
+  .hero p:first-of-type { font-size: 17px; }
+  .hero em { color: var(--muted); }
+  .launch { display: inline-flex; align-items: center; gap: 8px; margin: 16px 0 4px; padding: 10px 18px; border-radius: 10px; background: var(--brand); color: #04121c; font-weight: 700; text-decoration: none; }
+  .launch:hover { filter: brightness(1.08); }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 10px; border: 1px solid var(--emerald); color: var(--emerald); font-size: 12px; font-weight: 600; }
+  .toc { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; padding: 10px 0; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); font-size: 13px; }
+  .toc-lbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .toc a { color: var(--ink); text-decoration: none; opacity: 0.85; }
+  .toc a:hover { color: var(--brand); opacity: 1; }
+  h2 { font-size: 23px; margin: 44px 0 12px; padding-top: 8px; scroll-margin-top: 56px; }
+  h3 { font-size: 17px; margin: 28px 0 8px; color: var(--brand); scroll-margin-top: 56px; }
+  .anchor { color: var(--muted); text-decoration: none; margin-left: -0.9em; padding-right: 0.25em; opacity: 0; font-weight: 400; }
+  h2:hover .anchor, h3:hover .anchor { opacity: 0.6; }
+  a { color: var(--brand); }
+  strong { color: var(--ink); }
+  code { font: 0.86em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; }
+  pre code { background: none; padding: 0; font-size: 13px; line-height: 1.55; }
+  .cm { color: var(--muted); }
+  ul, ol { padding-left: 1.4em; }
+  li { margin: 4px 0; }
+  li > ul, li > ol { margin: 4px 0; }
+  ol > li::marker { color: var(--brand); font-weight: 700; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 36px 0; }
+  .start { background: var(--panel); border: 1px solid color-mix(in srgb, var(--brand) 40%, var(--line)); border-radius: 14px; padding: 4px 22px 14px; margin-top: 28px; }
+  .start h2 { margin-top: 18px; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--panel); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+  td:last-child { white-space: nowrap; }
+  footer { margin-top: 56px; color: var(--muted); font-size: 12px; }
+  @media (max-width: 600px) {
+    body { font-size: 14.5px; }
+    td:last-child { white-space: normal; }
+    .start { padding: 2px 14px 10px; }
+    .toc { position: static; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero"><h1><span class="mark" aria-hidden="true">◈</span>Contributor Licence Agreement</h1>
+<a class="launch" href="./README.html">← Back to the Read Me</a>
+</header>
+<main><p>Thank you for contributing to <strong>Chaos CathodeRay</strong> (the "Project"). The Project is maintained by <strong>Jonathan O'Hear</strong>, together with his successors and assigns, including any company or person to which he transfers the Project (the "Maintainer").</p>
+<p>This agreement lets the Maintainer keep the Project free software under the AGPL. It also lets the Maintainer offer it under other licences, for example commercial licences. <strong>You keep the copyright in your contribution.</strong></p>
+<p>When you submit a pull request, patch or other contribution (a "Contribution"), you agree to the following:</p>
+<ol><li><strong>Copyright licence.</strong> You grant the Maintainer a perpetual, worldwide, non-exclusive, royalty-free, irrevocable licence to use your Contributions and works derived from them. This includes reproducing them, preparing derivative works, publicly displaying and performing them, sublicensing and distributing them. The licence covers distribution under the GNU Affero General Public License v3.0 or later, or under any other licence, including proprietary and commercial licences.</li><li><strong>Patent licence.</strong> You grant the Maintainer, and everyone who receives the Project, a perpetual, worldwide, non-exclusive, royalty-free, irrevocable patent licence to make, have made, use, offer to sell, sell, import and otherwise transfer your Contributions. The licence applies only to patent claims you can license that your Contribution, alone or combined with the Project, would infringe.</li><li><strong>Your right to contribute.</strong> You confirm that each Contribution is your original work and that you are legally entitled to grant these licences. If your employer or another party has rights in your work, you confirm that they have allowed you to contribute it under this agreement.</li><li><strong>Third-party material.</strong> If a Contribution includes material you did not create, you will identify it and its licence in the pull request.</li><li><strong>No obligation.</strong> The Maintainer decides whether to use a Contribution. Contributions are provided "as is", without warranty.</li></ol>
+<p><strong>To accept</strong>, include this line in your pull request description:</p>
+<p><code>I have read the Chaos CathodeRay CLA and I hereby sign it.</code></p></main>
+<footer>Copyright © 2026 Jonathan O'Hear · <a href="./LICENSE.html">Licence</a> · <a href="./NOTICE.html">Notice &amp; terms</a> · <a href="./TRADEMARK.html">Trademark policy</a> · <a href="./CLA.html">Contributor licence agreement</a></footer>
+</div>
+</body>
+</html>

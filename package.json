@@ -1,0 +1,33 @@
+{
+  "name": "chaos-cathoderay",
+  "version": "0.1.0-beta",
+  "description": "Portable, zero-dependency browser projection mapping, multi-surface warping, ISF/GLSL shader synthesis, Vimix spatial mixing, multi-projector edge-blending, and USB-DMX / Art-Net studio.",
+  "license": "AGPL-3.0-or-later",
+  "author": "Jonathan O'Hear",
+  "private": false,
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "node scripts/build.js && node scripts/build-readme.js",
+    "readme": "node scripts/build-readme.js",
+    "test": "node scripts/test.js",
+    "index": "node scripts/generate-symbol-index.js",
+    "audit": "node scripts/audit-ui-health.js",
+    "bridge": "node scripts/osc-artnet-bridge.js"
+  },
+  "keywords": [
+    "projection-mapping",
+    "video-mapping",
+    "webgl2",
+    "isf",
+    "glsl",
+    "vj",
+    "edge-blending",
+    "dmx512",
+    "art-net",
+    "webserial",
+    "osc",
+    "webmidi"
+  ]
+}

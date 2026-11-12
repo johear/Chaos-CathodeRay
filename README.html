@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chaos CathodeRay — Read Me</title>
+<style>
+  :root {
+    --bg: #070b13; --panel: #0e1420; --ink: #e6edf7; --muted: #93a3ba; --line: rgba(255,255,255,0.09);
+    --brand: #6fd3ff; --warm: #ffcb7d; --emerald: #34e89e; --code-bg: rgba(111,211,255,0.08);
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f6f8fb; --panel: #ffffff; --ink: #141a24; --muted: #5a6577; --line: rgba(0,0,0,0.1);
+      --brand: #0a7fb5; --warm: #a8620a; --emerald: #0d8a5a; --code-bg: rgba(10,127,181,0.08);
+      color-scheme: light;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 16px 80px; }
+  header.hero { padding: 48px 0 24px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .mark { color: var(--brand); font-size: 22px; margin-right: 6px; }
+  h1 { font-size: clamp(26px, 5vw, 38px); line-height: 1.15; margin: 0 0 14px; letter-spacing: 0.01em; }
+  .hero p { margin: 8px 0; }
+  .hero p:first-of-type { font-size: 17px; }
+  .hero em { color: var(--muted); }
+  .launch { display: inline-flex; align-items: center; gap: 8px; margin: 16px 0 4px; padding: 10px 18px; border-radius: 10px; background: var(--brand); color: #04121c; font-weight: 700; text-decoration: none; }
+  .launch:hover { filter: brightness(1.08); }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 10px; border: 1px solid var(--emerald); color: var(--emerald); font-size: 12px; font-weight: 600; }
+  .toc { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; padding: 10px 0; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); font-size: 13px; }
+  .toc-lbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .toc a { color: var(--ink); text-decoration: none; opacity: 0.85; }
+  .toc a:hover { color: var(--brand); opacity: 1; }
+  h2 { font-size: 23px; margin: 44px 0 12px; padding-top: 8px; scroll-margin-top: 56px; }
+  h3 { font-size: 17px; margin: 28px 0 8px; color: var(--brand); scroll-margin-top: 56px; }
+  .anchor { color: var(--muted); text-decoration: none; margin-left: -0.9em; padding-right: 0.25em; opacity: 0; font-weight: 400; }
+  h2:hover .anchor, h3:hover .anchor { opacity: 0.6; }
+  a { color: var(--brand); }
+  strong { color: var(--ink); }
+  code { font: 0.86em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; }
+  pre code { background: none; padding: 0; font-size: 13px; line-height: 1.55; }
+  .cm { color: var(--muted); }
+  ul, ol { padding-left: 1.4em; }
+  li { margin: 4px 0; }
+  li > ul, li > ol { margin: 4px 0; }
+  ol > li::marker { color: var(--brand); font-weight: 700; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 36px 0; }
+  .start { background: var(--panel); border: 1px solid color-mix(in srgb, var(--brand) 40%, var(--line)); border-radius: 14px; padding: 4px 22px 14px; margin-top: 28px; }
+  .start h2 { margin-top: 18px; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--panel); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+  td:last-child { white-space: nowrap; }
+  footer { margin-top: 56px; color: var(--muted); font-size: 12px; }
+  @media (max-width: 600px) {
+    body { font-size: 14.5px; }
+    td:last-child { white-space: normal; }
+    .start { padding: 2px 14px 10px; }
+    .toc { position: static; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+<h1><span class="mark" aria-hidden="true">◈</span>Chaos CathodeRay 0.1.0 (public beta)</h1>
+<p><strong>Projection mapping, video-as-light and show control in one HTML file. It has no install, no server and no cloud, and it runs offline from a USB stick.</strong></p>
+<p><em>Formerly WebMapper. Old <code>.webmapper.json</code> shows, <code>.wmplugin.json</code> plugins and <code>/webmapper/…</code> OSC addresses still work.</em></p>
+<p><a href="./LICENSE.html"><span class="pill">License: AGPL-3.0-or-later</span></a></p>
+<a class="launch" href="./Chaos-CathodeRay.html">▶ Open Chaos CathodeRay</a>
+</header>
+<nav class="toc" aria-label="Contents"><span class="toc-lbl">Contents</span><a href="#beta-testers-start-here">Beta testers: start here</a><a href="#highlight-capabilities">Highlight Capabilities</a><a href="#essential-keyboard-shortcuts">Essential Keyboard Shortcuts</a><a href="#optional-local-osc-art-net-udp-bridge">Optional Local OSC &amp; Art-Net UDP Bridge</a><a href="#architecture-building-testing">Architecture, Building &amp; Testing</a><a href="#license-commercial-use">License &amp; commercial use</a></nav>
+<main>
+<section class="start"><h2 id="beta-testers-start-here"><a class="anchor" href="#beta-testers-start-here" aria-hidden="true">#</a>Beta testers: start here</h2>
+<ol><li>Open <strong><a href="./Chaos-CathodeRay.html"><code>Chaos-CathodeRay.html</code></a></strong> in desktop <strong>Chrome or Edge</strong>.<ul><li>Firefox and Safari run the mapping, but not multi-screen placement, MIDI or USB-DMX.</li><li>The file needs nothing else; you can copy it anywhere on its own.</li></ul></li><li>The <strong>Start screen</strong> asks <em>what are you making?</em> Pick one of: quick 2D map · theatre play · VJ set / club · rehearsal · architectural mapping. You can also explore the demo show or open a show file.</li><li>The three rooms, left to right:<ul><li><strong>1 · BUILD</strong> (F1): the real space. Venue, screens, projectors, set parts and people.</li><li><strong>2 · MAP</strong> (F2): put light onto it. Media, shapes, FX and cues. When you come from LIVE, edits stay <strong>Blind</strong> until you <strong>TAKE</strong>.</li><li><strong>3 · LIVE</strong> (F3): play the show. GO, the action deck, the mix and followspots.</li></ul></li><li>Every world view has the same <strong>view bar</strong>: <strong>Plan · 3D · Walk · POV</strong>, the six sides (<strong>Top … Right</strong>), and a <strong>Lines / Light</strong> look. Lines gives a measured drawing; Light gives the rendered venue.</li><li><strong>✓ / ⚠ Show Check</strong> (top right) lists what would go wrong in front of an audience, each with a one-click fix.</li><li><strong>Found a problem?</strong> Click the <strong>β 0.1</strong> badge, or use Show ▾ → Report a problem. Describe what happened and press <strong>✉ Send</strong>: the report goes straight to the Chaos CathodeRay team and you get a report number (e.g. <em>Chaos CathodeRay Report 251112-1415</em>). If you're offline, use <strong>Email instead</strong>, <strong>Copy report</strong> or <strong>Download .txt</strong>.<ul><li>Nothing is sent until you press Send.</li><li>The report has counts only, no file names.</li></ul></li></ol>
+<p><strong>Your work stays in your browser.</strong> Chaos CathodeRay autosaves into the browser you use, on your computer only; other testers never see it. When you come back, a <strong>Welcome back</strong> bar offers <strong>Keep working</strong> or <strong>⟲ Start fresh</strong>. You can also start fresh any time from Show ▾ → <strong>⟲ Start fresh…</strong>, which offers a backup download first. On a shared demo computer, open the app with <strong><code>?fresh</code></strong> at the end of the link (e.g. <code>Chaos-CathodeRay.html?fresh</code>) to start clean without restoring the last session.</p>
+<p><strong>Output:</strong> plug in a projector and press <strong>Proj</strong> on the right rail. In the projector window, press <strong>F</strong> for fullscreen. When calibration is done, press <strong>Shift + P</strong> to lock the show.</p>
+<p><strong>Files:</strong></p>
+<ul><li><strong>Save Show</strong> writes <code>*.chaos.json</code>. Media stays where it is on disk.</li><li><strong>Pack Show</strong> writes <code>*.chaospack.json</code> with the media embedded, for moving to another computer.</li></ul>
+</section><hr>
+<h2 id="highlight-capabilities"><a class="anchor" href="#highlight-capabilities" aria-hidden="true">#</a>Highlight Capabilities</h2>
+<h3 id="1-2d-3d-precision-warping-obj-meshes-6-point-solvepnp-calibration"><a class="anchor" href="#1-2d-3d-precision-warping-obj-meshes-6-point-solvepnp-calibration" aria-hidden="true">#</a>1. 2D/3D Precision Warping, <code>.obj</code> Meshes &amp; 6-Point <code>solvePnP</code> Calibration</h3>
+<ul><li><strong>6 Hybrid 2D &amp; 3D Surface Types</strong>:<ul><li><strong>Perspective Quad</strong>: Exact 3×3 projective homography (<code>q</code>-weighted perspective-correct UV) + optional <strong><code>2×2</code>–<code>16×16</code> Catmull-Rom Spline / Bicubic Bezier Curved Mesh</strong> with soft proportional brush falloff and Corner-Pin transport.</li><li><strong>Triangle</strong>: Exact barycentric UV slicing for geodesic domes &amp; low-poly sculptures.</li><li><strong>Circle / Radial Ring / Arc Sector</strong>: Inner hole radius + start/end sweep angles.</li><li><strong>Freeform N-Gon Polygon</strong>: Concave/convex ear-clipped polygons with Euclidean perimeter feathering and independent Input UV vertices.</li><li><strong>Architectural Line &amp; Perimeter Chase FX</strong>: Multi-segment neon ribbons, animated dashes, chasing beams, and boomerangs.</li><li><strong>3D Scenic Mesh (<code>+ 3D</code> / <code>🧊 OBJ</code>)</strong>: 7 built-in 3D scenic primitives (<em>Box, Stage Steps, Column, Dome, Obelisk, Torus, Curved Stage Cyclorama</em>) + zero-dependency <code>.obj</code> import, hardware 24-bit depth buffering, 3D studio lighting, neon wireframe chase, interactive <strong><code>🧊 3D Orbit</code></strong> viewport, and <strong>6-Point <code>solvePnP</code> Camera-Projector Calibration</strong>.</li></ul></li><li><strong>Architectural &amp; Theatrical Tooling</strong>:<ul><li><strong>Theatrical 4-Blade Framing Shutters</strong>: Independent Left/Right/Top/Bottom optical gate cuts with <code>±45°</code> blade swivel and focus frost across every 2D and 3D surface.</li><li><strong>Perspective Quad <code>N×M</code> Grid Cloner</strong> (<code>⊞ Split Grid…</code>) for window facades, brick matrices, and coffered ceilings.</li><li><strong>Smooth Bezier Additive/Subtractive Masks</strong> (128-point GPU SDF + Mask Choke), <strong><code>.svg</code> Elevation Import</strong>, and <strong>1:1 Stage UV Template Export</strong> (<code>.png</code> / <code>.svg</code>).</li><li><strong>Optical Structured-Light "Space Scanner"</strong>: Pure-browser Reflected Gray-Code camera-to-projector correspondence scanner generating a Projector-POV reference background.</li></ul></li></ul>
+<h3 id="2-cinema-grade-webgl2-optical-pipeline-live-isf-v2-shader-studio"><a class="anchor" href="#2-cinema-grade-webgl2-optical-pipeline-live-isf-v2-shader-studio" aria-hidden="true">#</a>2. Cinema-Grade WebGL2 Optical Pipeline &amp; Live ISF v2 Shader Studio</h3>
+<ul><li><strong>16-Bit Half-Float HDR Compositing (<code>RGBA16F</code>)</strong> + <code>16×</code> anisotropic mipmapped texture filtering.</li><li><strong>12 Blend Modes</strong>, <strong>Luma &amp; YCbCr Chroma Keying</strong>, Rodrigues Hue/Kelvin/Gamma color science, and stackable <strong>Per-Surface + Master Output GPU Post-FX Racks</strong> (<em>Bloom, Sobel Edge-Trace, Kaleidoscope, LED Pixelate, Chromatic Aberration, Glitch Slice, Feedback Trails, Strobe</em>, plus custom ISF effects).</li><li><strong>Dockable Live ISF v2 (<code>.fs</code>) GLSL Shader Studio</strong> with auto-generated Inspector sliders, multi-pass ping-pong <code>PASSES</code>, and non-destructive hot-compile diagnostics.</li><li><strong>Pro Media Sources</strong>: Local Video (non-destructive In/Out trim, GPU seamless loop crossfade, BPM rate sync, audio waveform), Still Images, Live Camera, <strong>Zero-Install Window / Screen Capture (<code>getDisplayMedia</code>)</strong>, <strong>Dynamic Canvas Typography / <code>{COUNTDOWN}</code> Generator</strong>, and 9 built-in shaders.</li></ul>
+<h3 id="3-spatial-live-mixing-audio-midi-osc-modulation-show-timeline"><a class="anchor" href="#3-spatial-live-mixing-audio-midi-osc-modulation-show-timeline" aria-hidden="true">#</a>3. Spatial Live Mixing, Audio/MIDI/OSC Modulation &amp; Show Timeline</h3>
+<ul><li><strong><code>◎ Mix</code> Spatial Radar (<code>4</code> / <code>V</code>)</strong>: Decouples live VJ source mixing (center = <code>100%</code>, rim = <code>0%</code>, Standby Orbit <code>r = 1.12</code>, flick-throw inertia, double-click Solo) from calibrated Stage geometry.</li><li><strong>2D Cue Constellation Pad</strong>: Shepard inverse-distance multi-cue vector morphing across any number of stored show cues.</li><li><strong>Universal Modulation Matrix</strong>: Built-in <strong>WebAudio Synth Beat Engine</strong> + Live Mic/Media FFT (<code>Sub</code>, <code>Low</code>, <code>Mid</code>, <code>High</code>, <code>RMS</code>, <code>Beat</code>) driving <strong>LFOs</strong>, <strong>Audio Envelopes</strong>, and <strong>8-Step Beat Sequencers</strong> on any slider (<code>Right-Click</code> any slider to bind).</li><li><strong>1-Click <code>WebMIDI</code> Learn (<code>Cmd/Ctrl + M</code>)</strong>, <strong>Wireless Gamepad Steering</strong>, <strong>Bi-Directional Binary OSC 1.0</strong>, <strong>Selective Cue Recall Filters</strong> (protecting live warp geometry!), and <strong>Keyframe Show Timeline (<code>T</code>)</strong>.</li></ul>
+<h3 id="4-2d-3d-stage-plan-constant-brightness-solver-video-as-light-led-pixel-mapping"><a class="anchor" href="#4-2d-3d-stage-plan-constant-brightness-solver-video-as-light-led-pixel-mapping" aria-hidden="true">#</a>4. 2D/3D Stage Plan Constant-Brightness Solver, Video-as-Light &amp; LED Pixel Mapping</h3>
+<ul><li><strong>Multi-Projector Array Routing (<code>1..N</code> Screens) &amp; 2D/3D Visual Stage Plan</strong>:<ul><li>Slice or cross-project the Canonical Stage across <strong>unbounded <code>1..N</code> Projector Windows</strong> (<code>?role=projector&amp;screen=1..N</code>, grid presets <code>1×1</code>..<code>6×1</code>, <code>3×2</code>, <code>2×</code>/<code>3×</code> tandem stacks, or full 3D Stage Plan rigs via <code>getScreenDetails()</code>).</li><li><strong>2D Top Plan + 3D Elevation Orbit Rigging Studio (<code>📐 2D/3D Stage Plan &amp; Constant Brightness…</code>)</strong>: Place projectors in real stage meters (<code>X, Y trim height, Z throw</code>, Throw Ratio, Lens Shift, ANSI Lumens) with exact 3×3 perspective homography, cos θ / d² constant-brightness GPU <code>RGBA16F</code> LUT equalization, and automatic <strong>3D Scenic Mesh Shadow Fill</strong> when <code>mesh3d</code> props block one projector's sightline.</li><li><strong>"Video as Light" Live Performance</strong>: <strong>3D-Convergent Multi-Projector Followspot</strong> converging beams from opposing wings onto a 3D performer volume while masking wall spill, plus dedicated <strong><code>💡 Light</code> Stage Gobo &amp; Prism Instruments</strong> and <strong>GPU 14-Frame Ring-Buffer Delay (<code>0–200ms</code>)</strong>.</li></ul></li><li><strong>Real-Time LED Pixel Mapper</strong>:<ul><li>Place <strong>LED Strips, Serpentine Matrices, and Rings</strong> directly on the Stage to sample live WebGL pixels (<code>RGB</code>, <code>GRB</code> WS2812, <code>BGR</code> APA102, <code>RGBW</code>, <code>Luma</code>, <code>RGB16</code>) with automatic multi-universe rollover and collision detection.</li><li>Stream 44Hz DMX512 directly from Chrome/Edge via <strong><code>WebSerial</code></strong> (<strong>ENTTEC DMX USB Pro</strong> &amp; <strong>OpenDMX FTDI 250k 8N2</strong>) or over <strong>Art-Net UDP <code>6454</code></strong> via the zero-dependency local Node relay.</li></ul></li></ul>
+<hr>
+<h2 id="essential-keyboard-shortcuts"><a class="anchor" href="#essential-keyboard-shortcuts" aria-hidden="true">#</a>Essential Keyboard Shortcuts</h2>
+<div class="table-wrap"><table><thead><tr><th>Action</th><th>Shortcut</th></tr></thead><tbody><tr><td><strong>Command Palette &amp; Flash-to-Location</strong></td><td><code>/</code> or <code>Cmd/Ctrl + K</code></td></tr><tr><td><strong>GO Next Cue / Previous Cue</strong> (stops safely at End of List)</td><td><code>Space</code> or <code>]</code> / <code>Shift + Space</code> or <code>[</code></td></tr><tr><td><strong>Stage Blackout (DBO)</strong> (<code>0ms</code> Out • Hold <code>0.6s</code> or <code>Shift+B</code> Restore)</td><td><code>B</code></td></tr><tr><td><strong>Show Lock</strong> (protects calibration &amp; hides guides on projectors)</td><td><code>Shift + P</code></td></tr><tr><td><strong>Split / Input UV / Stage / <code>◎ Mix</code> / <code>◪ Rig</code> Workspace</strong></td><td><code>1</code> / <code>2</code> / <code>3</code> / <code>4</code> (<code>V</code>) / <code>5</code></td></tr><tr><td><strong>Radial Add-Surface Menu / Precision Snap Pie</strong></td><td>Hold <code>A</code> / Hold <code>S</code></td></tr><tr><td><strong>Followspot Live Stage Steer</strong> (<code>Tab</code> stays pure WAI-ARIA focus!)</td><td>`<code> </code> `` (Backquote)</td></tr><tr><td><strong>Sub-Pixel Vertex Nudge</strong> (<code>1px</code> / <code>10px</code> / <code>0.2px</code>)</td><td><code>Arrow Keys</code> / <code>Shift+Arrows</code> / <code>Alt+Arrows</code></td></tr><tr><td><strong>10× Fine Drag Gear &amp; Cycle Active Vertex</strong></td><td>Hold <code>Alt</code> while dragging / <code>,</code> and <code>.</code></td></tr><tr><td><strong>Undo / Redo</strong> (50-step gesture-coalesced)</td><td><code>Cmd/Ctrl + Z</code> / <code>Cmd/Ctrl + Shift + Z</code></td></tr><tr><td><strong>Launch 2nd-Screen Projector / Laptop GPU Eco Mode</strong></td><td><code>Shift + W</code> / <code>Shift + 9</code></td></tr><tr><td><strong>Keyframe Show Timeline / 1-Click MIDI Learn</strong></td><td><code>T</code> / <code>Cmd/Ctrl + M</code></td></tr><tr><td><strong>Clean Local Stage Mode / Fullscreen / Cheat-Sheet</strong></td><td><code>P</code> then <code>F</code> / <code>?</code></td></tr></tbody></table></div>
+<hr>
+<h2 id="optional-local-osc-art-net-udp-bridge"><a class="anchor" href="#optional-local-osc-art-net-udp-bridge" aria-hidden="true">#</a>Optional Local OSC &amp; Art-Net UDP Bridge</h2>
+<p>While <code>Chaos-CathodeRay.html</code> runs 100% standalone over <code>file://</code> (including <code>WebMIDI</code> and <code>WebSerial</code> USB-DMX), browsers cannot send raw UDP packets directly. To connect <strong>OSC controllers, show-control and music software</strong> over UDP OSC or <strong>Art-Net LED Pixel Controllers</strong> over UDP <code>6454</code>, run the included zero-dependency Node.js relay:</p>
+<pre><code>npm run bridge
+<span class="cm"># or with custom ports / Art-Net target IP:</span>
+WS_PORT=8080 OSC_IN_PORT=9000 OSC_OUT_PORT=9001 ARTNET_HOST=255.255.255.255 ARTNET_PORT=6454 node scripts/osc-artnet-bridge.js</code></pre>
+<p>Then click <strong>Connect Bridge</strong> in the <strong><code>Mod/IO</code></strong> tab (or toggle <strong><code>Art-Net WS → UDP 6454</code></strong> in <strong><code>Output → LED Pixel Map</code></strong>).</p>
+<hr>
+<h2 id="architecture-building-testing"><a class="anchor" href="#architecture-building-testing" aria-hidden="true">#</a>Architecture, Building &amp; Testing</h2>
+<p>Source files live under <a href="./src/"><code>src/</code></a> (<code>styles.css</code>, <code>body.html</code>, and modular scripts <code>01-shaders.js</code> .. <code>08-events-boot.js</code>) and compile into the single-file <a href="./Chaos-CathodeRay.html"><code>Chaos-CathodeRay.html</code></a> bundle:</p>
+<pre><code><span class="cm"># Syntax-check all JS modules and rebuild the portable Chaos-CathodeRay.html</span>
+npm run build
+
+<span class="cm"># Run the full zero-dependency automated verification suite (21 suites)</span>
+npm test</code></pre>
+<ul><li>Extending Chaos CathodeRay with custom <code>.chaosplugin.json</code> packs, ISF shaders, custom modulators, or external controllers? Read <strong><a href="./PLUGIN_SPEC.md"><code>PLUGIN_SPEC.md</code></a></strong>.</li><li>Contributing code or bug fixes? Read <strong><a href="./CONTRIBUTING.md"><code>CONTRIBUTING.md</code></a></strong> and <strong><a href="./ROADMAP.md"><code>ROADMAP.md</code></a></strong>.</li></ul>
+<hr>
+<h2 id="license-commercial-use"><a class="anchor" href="#license-commercial-use" aria-hidden="true">#</a>License &amp; commercial use</h2>
+<p>Copyright © 2026 Jonathan O'Hear. <strong>Chaos CathodeRay is free software</strong>, licensed under the <strong><a href="./LICENSE.html">GNU Affero General Public License v3.0 or later</a></strong> (AGPL-3.0-or-later). Additional terms and permissions are in <strong><a href="./NOTICE.html">NOTICE.md</a></strong>.</p>
+<ul><li><strong>Use it, study it, change it.</strong> You may run Chaos CathodeRay for any purpose, including paid shows, and modify it. Private changes you use yourself don't have to be published.</li><li><strong>Share alike.</strong> If you <strong>distribute</strong> Chaos CathodeRay, or <strong>let other people use a modified version over a network</strong> (for example a hosted service), you must give those users the complete corresponding source of your version under the same licence.</li><li><strong>Keep the credit.</strong> Modified versions must keep the copyright notice and "Based on Chaos CathodeRay" in their legal notices (About screen).</li><li><strong>Your work is yours.</strong> Shows, media and output made with Chaos CathodeRay, and plugins or shaders that use its public plugin interfaces, are not covered by the AGPL. License them however you like.</li><li><strong>The name is not included.</strong> "Chaos CathodeRay" and its logos are trademarks. Modified versions must use a different name; see <strong><a href="./TRADEMARK.html">TRADEMARK.md</a></strong>.</li><li><strong>Commercial licences.</strong> To build Chaos CathodeRay into a proprietary product or white-label it without the AGPL obligations, contact <strong>jonathan@ohear.com</strong>.</li><li><strong>Contributing.</strong> Pull requests need the <strong><a href="./CLA.html">Contributor Licence Agreement</a></strong>.</li></ul>
+<p>This program comes with <strong>absolutely no warranty</strong>, to the extent permitted by law.</p>
+</main>
+<footer>Generated from README.md by <code>scripts/build-readme.js</code>. Open <a href="./Chaos-CathodeRay.html">Chaos-CathodeRay.html</a> to start.</footer>
+</div>
+</body>
+</html>

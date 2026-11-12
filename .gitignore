@@ -1,0 +1,20 @@
+# OS / editor
+.DS_Store
+.rgignore
+.claude/
+
+# Legacy archives & pre-rename build (kept locally only)
+WebMapper.html
+WebMapper-V1.html
+reference_Still-Rising.html
+
+# Internal development notes (local only)
+CLAUDE.md
+AGENTS.md
+SYMBOL_INDEX.md
+AUDIT_REPORT.md
+VISION-*.md
+
+# Build scratch
+scripts/.tmp-syntax-check.js
+node_modules/
