@@ -19,7 +19,7 @@
  */
 declare(strict_types=1);
 
-const REPORT_TO       = 'jonathan@ohear.com';
+const REPORT_TO       = 'talk.to.chaos.productions@gmail.com';
 const REPORT_FROM     = 'Chaos CathodeRay Reports <noreply@ohear.com>';
 const SUBJECT_PREFIX  = 'Chaos CathodeRay Report';
 const MAX_BYTES       = 65536;   // a report is ~2 kB; refuse anything silly

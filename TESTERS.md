@@ -62,7 +62,7 @@ You don't need a projector to test: the **3D Venue** view shows what each projec
 2. In **What happened?**, write what you did, what you expected and what happened instead.
 3. Press **✉ Send**. You'll see **"✓ Sent as Chaos CathodeRay Report 261112-1415"**. Mention that number if we follow up.
 
-- **If you're offline or Send fails,** use **✉ Email instead**, **📋 Copy report** or **⬇ Download .txt**, and send it to **jonathan@ohear.com**.
+- **If you're offline or Send fails,** use **✉ Email instead**, **📋 Copy report** or **⬇ Download .txt**, and send it to **talk.to.chaos.productions@gmail.com**.
 - **Privacy:** the report contains your browser, screen and graphics card, the app's state and recent errors. It includes **counts only, no file names or media**, and nothing is sent until you press Send.
 - **Confusion counts too.** "I couldn't find how to…" is just as valuable as a crash.
 
@@ -123,6 +123,6 @@ Pick whichever matches your work; even ten minutes helps.
 
 ---
 
-Thank you for helping. Questions or ideas that aren't bugs are welcome too: **jonathan@ohear.com**.
+Thank you for helping. Questions or ideas that aren't bugs are welcome too: **talk.to.chaos.productions@gmail.com**.
 
 *Chaos CathodeRay is free software (AGPL-3.0-or-later) and comes with no warranty. See [LICENSE](./LICENSE) and [NOTICE.md](./NOTICE.md).*

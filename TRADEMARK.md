@@ -21,4 +21,4 @@ This policy exists so that people always know whether they are using the officia
 
 ## Permissions and commercial licences
 
-For a commercial licence, a white-label version or any permission not covered here, write to **jonathan@ohear.com**.
+For a commercial licence, a white-label version or any permission not covered here, write to **talk.to.chaos.productions@gmail.com**.

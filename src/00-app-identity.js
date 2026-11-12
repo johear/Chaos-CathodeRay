@@ -28,7 +28,7 @@ const APP_SHOW_EXT = '.chaos.json';
 const APP_PACK_EXT = '.chaospack.json';
 const APP_OSC_PREFIX = '/chaos';
 // Beta problem reports: "✉ Send" opens the tester's mail app addressed here.
-const APP_FEEDBACK_EMAIL = 'jonathan@ohear.com';
+const APP_FEEDBACK_EMAIL = 'talk.to.chaos.productions@gmail.com';
 // "✉ Send" posts the report here (server/chaos-report.php, uploaded into the Chaos/Cathode folder); email is the fallback.
 const APP_REPORT_ENDPOINT = 'https://www.jonathan.ohear.com/Chaos/CathodeRay/chaos-report.php';
 const APP_REPORT_SUBJECT = 'Chaos CathodeRay Report';

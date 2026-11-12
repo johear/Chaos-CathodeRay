@@ -82,7 +82,7 @@ Copyright © 2026 Jonathan O'Hear. **Chaos CathodeRay is free software**, licens
 - **Keep the credit.** Modified versions must keep the copyright notice and "Based on Chaos CathodeRay" in their legal notices (the About screen).
 - **Your work is yours.** The AGPL doesn't cover shows, media and output made with Chaos CathodeRay. It doesn't cover plugins or shaders that only use the public plugin interfaces either.
 - **The name is not included.** "Chaos CathodeRay" and its logos are trademarks, so modified versions must use a different name. See **[TRADEMARK.md](./TRADEMARK.md)**.
-- **Commercial licences.** To build it into a proprietary product or white-label it without the AGPL obligations, contact **jonathan@ohear.com**.
+- **Commercial licences.** To build it into a proprietary product or white-label it without the AGPL obligations, contact **talk.to.chaos.productions@gmail.com**.
 
 This program comes with **absolutely no warranty**, to the extent permitted by law.
 
