@@ -267,6 +267,7 @@ function pushAlignCrosshair() {
   const pin = pa.pins[pa.sel];
   const c = getEffectiveProjectorCrop(scr);
   state.calibCrosshair.active = true;
+  state.calibCrosshair.screen = scr.index; // only this projector draws it
   state.calibCrosshair.x = c.x + pin.pu * c.w;
   state.calibCrosshair.y = c.y + pin.pv * c.h;
   state.calibCrosshair.expireMs = performance.now() + 3600 * 1000;
@@ -337,7 +338,7 @@ function syncProjectorAlignUI() {
     <div class="pa-head"><strong>📐 Align P${pa.projIndex} by points</strong><button type="button" class="icon-btn" data-pa="cancel" title="Cancel (Esc) — restores the original pose">✕</button></div>
     <div class="pa-status">${status}</div>
     <div class="pa-pins">${pa.pins.map((p, i) => `<button type="button" class="venue-chip${i === pa.sel ? ' active' : ''}" data-pa="pin" data-i="${i}" title="(${p.world.map(v => v.toFixed(2)).join(', ')}) m${p.snapped ? ' · snapped corner' : ''}">${p.snapped ? '◆' : '●'}${i + 1}${p.moved ? '✓' : ''}</button>`).join('') || '<span class="mono-dim">no points yet</span>'}</div>
-    <div class="pa-help">Look at the real wall: move the crosshair of the selected point onto the real corner with <kbd>←↑→↓</kbd> (1 px · <kbd>Shift</kbd> 10 · <kbd>Alt</kbd> 0.2) · <kbd>Tab</kbd> next point · <kbd>⌫</kbd> remove · right- or Alt-drag orbits.</div>
+    <div class="pa-help">Look at the real wall: <b>drag a crosshair in POV view</b> (P${pa.projIndex} lens) or move the selected one with <kbd>←↑→↓</kbd> (1 px · <kbd>Shift</kbd> 10 · <kbd>Alt</kbd> 0.2) · <kbd>Tab</kbd> next point · <kbd>⌫</kbd> remove · right- or Alt-drag orbits.</div>
     <div class="pa-actions">
       <button type="button" class="btn" data-pa="pov" title="Look through this projector">📽 POV</button>
       <button type="button" class="btn" data-pa="clear">Clear</button>
@@ -348,10 +349,66 @@ function syncProjectorAlignUI() {
 }
 
 // Draw pins in any 3D venue view: world point (◆) and where the projector now lands it (+).
-function drawProjectorAlignOverlay(ctx, mvp, cssW, cssH) {
+// POV of the projector being aligned = its own raster: a pin's target (pu, pv) has an exact
+// screen position, so the crosshair can be grabbed and dragged there.
+let _alignDragHandles = [];
+let _alignDragView = null;
+
+function alignRasterToPx(pu, pv, frame, cssW, cssH) {
+  const nx = (2 * pu - 1) * frame.sx, ny = (2 * pv - 1) * frame.sy;
+  return [(nx * 0.5 + 0.5) * cssW, (1 - (ny * 0.5 + 0.5)) * cssH];
+}
+
+function alignPxToRaster(x, y, frame, cssW, cssH) {
+  const nx = (x / cssW) * 2 - 1, ny = 1 - (y / cssH) * 2;
+  return [(nx / frame.sx + 1) / 2, (ny / frame.sy + 1) / 2];
+}
+
+// Call from a 3D view's pointerdown before adding pins: grabs a crosshair if one is under
+// the pointer. While dragging, the real crosshair follows on the wall; the pose is solved on release.
+function tryBeginAlignPinDrag(mx, my, el) {
+  const pa = state.projAlign;
+  if (!pa || !pa.active || !_alignDragView || !_alignDragHandles.length || !el) return false;
+  let best = null, bestD = 14;
+  for (const h of _alignDragHandles) {
+    const d = Math.hypot(h.x - mx, h.y - my);
+    if (d < bestD) { bestD = d; best = h; }
+  }
+  if (!best) return false;
+  pa.sel = best.i;
+  const pin = pa.pins[best.i];
+  const view = _alignDragView;
+  const rect = el.getBoundingClientRect();
+  const grabDx = best.x - mx, grabDy = best.y - my;
+  const move = (ev) => {
+    const x = ev.clientX - rect.left + grabDx, y = ev.clientY - rect.top + grabDy;
+    const [pu, pv] = alignPxToRaster(x, y, view.frame, view.cssW, view.cssH);
+    pin.pu = clamp(pu, -0.5, 1.5);
+    pin.pv = clamp(pv, -0.5, 1.5);
+    pin.moved = true;
+    pushAlignCrosshair();
+    if (typeof renderRigWorkspaceCanvas === 'function' && isBuildRoom()) renderRigWorkspaceCanvas();
+  };
+  const up = () => {
+    window.removeEventListener('pointermove', move, true);
+    window.removeEventListener('pointerup', up, true);
+    resolveProjectorAlign();
+    if (typeof renderRigWorkspaceCanvas === 'function' && isBuildRoom()) renderRigWorkspaceCanvas();
+  };
+  window.addEventListener('pointermove', move, true);
+  window.addEventListener('pointerup', up, true);
+  syncProjectorAlignUI();
+  return true;
+}
+
+function drawProjectorAlignOverlay(ctx, mvp, cssW, cssH, cam = null) {
   const pa = state.projAlign;
   const scr = getAlignProjector();
+  _alignDragHandles = [];
+  _alignDragView = null;
   if (!pa || !scr || !pa.pins.length) return;
+  const inPov = !!(cam && cam.pov === scr.index && cam.povFrame);
+  if (inPov) _alignDragView = { frame: cam.povFrame, cssW, cssH };
   const toPx = (P) => {
     const c = venueClipPoint(P, mvp);
     if (c[3] < 0.02) return null;
@@ -371,6 +428,28 @@ function drawProjectorAlignOverlay(ctx, mvp, cssW, cssH) {
     ctx.stroke();
     ctx.fillText(String(i + 1), p[0] + 9, p[1] - 6);
   });
+  // In this projector's POV: each pin's target crosshair (where the real corner is in the
+  // projector image). Drag it onto the real corner; a dashed line shows the remaining error.
+  if (inPov) {
+    pa.pins.forEach((pin, i) => {
+      const t = alignRasterToPx(pin.pu, pin.pv, cam.povFrame, cssW, cssH);
+      const p = toPx(pin.world);
+      const sel = i === pa.sel;
+      ctx.strokeStyle = sel ? '#ffcb7d' : 'rgba(255, 203, 125, 0.75)';
+      ctx.lineWidth = sel ? 1.8 : 1.2;
+      if (p && Math.hypot(p[0] - t[0], p[1] - t[1]) > 2) {
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(t[0], t[1]); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      ctx.beginPath();
+      ctx.moveTo(t[0] - 11, t[1]); ctx.lineTo(t[0] - 3, t[1]); ctx.moveTo(t[0] + 3, t[1]); ctx.lineTo(t[0] + 11, t[1]);
+      ctx.moveTo(t[0], t[1] - 11); ctx.lineTo(t[0], t[1] - 3); ctx.moveTo(t[0], t[1] + 3); ctx.lineTo(t[0], t[1] + 11);
+      ctx.stroke();
+      ctx.beginPath(); ctx.arc(t[0], t[1], 6, 0, Math.PI * 2); ctx.stroke();
+      _alignDragHandles.push({ i, x: t[0], y: t[1] });
+    });
+  }
   ctx.restore();
 }
 

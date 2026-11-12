@@ -836,6 +836,7 @@ function initRigWorkspaceControls() {
 
     // Point calibration in the 3D rig: left clicks add pins.
     if (xf.mode === 'orbit3d' && state.projAlign && state.projAlign.active && e.button === 0 && !e.altKey && typeof addAlignPinFromRay === 'function') {
+      if (typeof tryBeginAlignPinDrag === 'function' && tryBeginAlignPinDrag(mx, my, cvs)) { renderRigWorkspaceCanvas(); return; }
       const ray = venueScreenRay({ mvp: xf.mvp }, mx / Math.max(1, xf.cssW), 1 - my / Math.max(1, xf.mapH));
       if (ray) { addAlignPinFromRay(ray.origin, ray.dir); renderRigWorkspaceCanvas(); return; }
     }

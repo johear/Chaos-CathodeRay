@@ -2496,7 +2496,8 @@ function renderWebGLWorkspace(dpr) {
           }
 
           const ch = state.calibCrosshair;
-          const chActive = !state.showLock && ch && ch.active && performance.now() < ch.expireMs;
+          const chActive = !state.showLock && ch && ch.active && performance.now() < ch.expireMs
+            && !(ch.screen && projSlice && projSlice.index !== ch.screen); // a projector's own alignment crosshair
           if (ch && ch.active && !chActive) ch.active = false;
           gl.uniform3f(
             xu.uCalibCrosshair,

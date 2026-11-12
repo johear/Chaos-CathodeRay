@@ -2521,6 +2521,12 @@ const vmScript = `
     assert(!isProgramHeld() && gen.speed === speed0 + 0.2, 'TAKE releases the hold with the edited setting');
     state.crossfade.active = false; state.crossfade.fromScene = null; gen.speed = speed0;
 
+    // Calibration: POV crosshair pixel mapping round-trips; crosshair belongs to one projector.
+    const fr = { sx: 0.8, sy: 1 };
+    const px = alignRasterToPx(0.3, 0.7, fr, 800, 450);
+    const back = alignPxToRaster(px[0], px[1], fr, 800, 450);
+    assert(Math.abs(back[0] - 0.3) < 1e-9 && Math.abs(back[1] - 0.7) < 1e-9, 'POV crosshair pixel ↔ projector raster mapping round-trips');
+
     // Perf governor: a browser frame cap (steady 33.3 ms whatever the quality) is detected and
     // quality goes back to 100 %; a real GPU bottleneck (frames get faster at lower scale) is not a cap.
     const resetGov = () => Object.assign(perfGovernor, { emaMs: 16.7, jitter: 0, scale: 1, ceiling: 1, ceilingUntil: 0, goodSince: 0, lastAdjust: 0, emaAtStart: 0, floorSince: 0, capped: false, capMs: 0 });

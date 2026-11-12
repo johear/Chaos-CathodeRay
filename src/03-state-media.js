@@ -557,6 +557,7 @@ function setCanonicalStageResolution(preset, customW = null, customH = null) {
 function pingCalibCrosshair(sx, sy, holdMs = 1300) {
   if (state.showLock) return;
   state.calibCrosshair.active = true;
+  state.calibCrosshair.screen = 0;
   state.calibCrosshair.x = sx;
   state.calibCrosshair.y = sy;
   state.calibCrosshair.expireMs = performance.now() + holdMs;

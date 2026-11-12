@@ -2089,6 +2089,7 @@ function getSteerableSpot3D() {
 function venueStagePointerDown(mx, my, e) {
   // Point calibration: every click in the 3D view adds a pin (corners snap).
   if (state.projAlign && state.projAlign.active && _venueStageCam && typeof addAlignPinFromRay === 'function' && !e.altKey && e.button === 0) {
+    if (typeof tryBeginAlignPinDrag === 'function' && tryBeginAlignPinDrag(mx, my, e.currentTarget || e.target)) return { kind: 'align-pin', picked: true };
     const { cam, cssW, cssH } = _venueStageCam;
     const ray = venueScreenRay(cam, mx / cssW, 1 - my / cssH);
     if (ray) { addAlignPinFromRay(ray.origin, ray.dir); return { kind: 'align-pin', picked: true }; }
@@ -2364,7 +2365,7 @@ function renderVenueStageOverlay(ctx, cssW, cssH) {
   ctx.globalAlpha = 1;
   _venueSpotHits = drawVenueSpotOverlays(ctx, cam.mvp, cssW, cssH);
   drawVenueSelectionHighlight(ctx, cam.mvp, cssW, cssH);
-  if (typeof drawProjectorAlignOverlay === 'function') drawProjectorAlignOverlay(ctx, cam.mvp, cssW, cssH);
+  if (typeof drawProjectorAlignOverlay === 'function') drawProjectorAlignOverlay(ctx, cam.mvp, cssW, cssH, cam);
   if (state.spotCalib && state.spotCalib.active) {
     ctx.fillStyle = 'rgba(255, 203, 125, 0.92)';
     ctx.fillRect(0, cssH - 24, cssW, 24);

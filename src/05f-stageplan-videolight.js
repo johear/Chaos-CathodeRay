@@ -2549,7 +2549,7 @@ function renderStagePlanCanvas(targetCanvas = null) {
     ctx.fillStyle = 'rgba(180, 198, 224, 0.72)';
     ctx.font = '9px ui-monospace, SFMono-Regular, Menlo, monospace';
     ctx.textAlign = 'left';
-    if (typeof drawProjectorAlignOverlay === 'function') drawProjectorAlignOverlay(ctx, cam.mvp, cssW, mapH);
+    if (typeof drawProjectorAlignOverlay === 'function') drawProjectorAlignOverlay(ctx, cam.mvp, cssW, mapH, cam);
     if (cam.ortho) {
       // True-scale ruler for orthographic views.
       const mpp = (2 * cam.orthoHalfH) / Math.max(1, mapH);
