@@ -611,6 +611,7 @@ function initStartScreen(restoredAutosave) {
 function fillLegalNotices(root = document) {
   root.querySelectorAll('.app-copyright').forEach(el => { el.textContent = APP_COPYRIGHT; });
   root.querySelectorAll('.app-license').forEach(el => { el.textContent = APP_LICENSE; });
+  root.querySelectorAll('.tester-guide-link').forEach(el => { el.href = APP_TESTERS_URL; });
   const set = (id, prop, val) => { const el = document.getElementById(id); if (el) el[prop] = val; };
   set('about-version', 'textContent', APP_VERSION);
   set('about-attribution', 'textContent', APP_ATTRIBUTION);

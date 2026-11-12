@@ -16,6 +16,8 @@ const APP_COPYRIGHT = "Copyright © 2026 Jonathan O'Hear";
 const APP_LICENSE = 'AGPL-3.0-or-later';
 const APP_SOURCE_URL = 'https://github.com/johear/Chaos-CathodeRay';
 const APP_ATTRIBUTION = `Based on Chaos CathodeRay (${APP_SOURCE_URL})`;
+// Beta tester guide (TESTERS.md) — online so it works even from a lone downloaded file.
+const APP_TESTERS_URL = `${APP_SOURCE_URL}/blob/main/TESTERS.md`;
 // Plugins & shaders made by users are theirs (NOTICE.md, Permission 2): no licence is assumed.
 const APP_PLUGIN_DEFAULT_LICENSE = 'unspecified';
 const APP_SHOW_FORMAT = 'chaoscathode-show';

@@ -3990,6 +3990,7 @@
     .about-dialog p { font-size: 12px; line-height: 1.5; }
     .about-legal { padding: 8px 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.04); }
     .about-links a.btn { text-decoration: none; }
+    a.tester-guide-link { text-decoration: none; }
 
   </style>
 </head>
@@ -4027,6 +4028,7 @@
             <button type="button" class="btn" id="btn-pack-wmshow" title="Export a self-contained show pack with media &amp; shaders embedded (.chaospack.json)">📦 Pack Show</button>
             <button type="button" class="btn" id="btn-load-json" title="Load a show file (.chaos.json, .chaospack.json, or older WebMapper .json / .wmshow)">📂 Load Show…</button>
             <button type="button" class="btn danger" id="btn-start-fresh" title="Clear everything this browser remembers and start clean (offers a backup first)" style="grid-column:1 / -1;">⟲ Start fresh…</button>
+            <a class="btn tester-guide-link" target="_blank" rel="noopener" title="Beta tester guide: what to try, how to report problems, known limitations" style="grid-column:1 / -1;text-decoration:none;">🧪 Beta tester guide</a>
             <button type="button" class="btn" id="btn-about" title="About Chaos CathodeRay: version, copyright, licence and source code" style="grid-column:1 / -1;">ⓘ About &amp; licence</button>
             <button type="button" class="btn" id="btn-report-problem" title="Report a problem: copy a diagnostics report for the beta team" style="grid-column:1 / -1;">🐞 Report a problem…</button>
             <button type="button" class="btn emerald" id="btn-load-keep-venue" title="Touring Mode: Load Show Cues, Media &amp; FX while preserving this Venue's Warp, Rig &amp; DMX Calibration">🏛 Keep Venue…</button>
@@ -6794,6 +6796,7 @@
       <button type="button" class="btn emerald" id="btn-start-continue" hidden>↩ Continue last session</button>
       <button type="button" class="btn" id="btn-start-demo">✦ Explore the demo show</button>
       <button type="button" class="btn" id="btn-start-open">📂 Open a show file…</button>
+      <a class="btn warm tester-guide-link" target="_blank" rel="noopener" title="What to try, how to report problems, known limitations">🧪 Tester guide</a>
       <label class="studio-check start-pref" for="chk-start-show"><input type="checkbox" id="chk-start-show" /> <span>Show this every time</span></label>
     </div>
     <p class="start-legal"><span class="app-copyright"></span> · free software (<span class="app-license"></span>), no warranty · <button type="button" class="link-btn" id="btn-start-about">About &amp; licence</button></p>
@@ -6814,6 +6817,7 @@
       <a class="btn" id="about-license" target="_blank" rel="noopener">Licence (AGPL-3.0)</a>
       <a class="btn" id="about-notice" target="_blank" rel="noopener">Notice &amp; terms</a>
       <a class="btn" id="about-trademark" target="_blank" rel="noopener">Trademark policy</a>
+      <a class="btn tester-guide-link" target="_blank" rel="noopener">🧪 Tester guide</a>
     </div>
   </dialog>
 
@@ -6952,6 +6956,8 @@ const APP_COPYRIGHT = "Copyright © 2026 Jonathan O'Hear";
 const APP_LICENSE = 'AGPL-3.0-or-later';
 const APP_SOURCE_URL = 'https://github.com/johear/Chaos-CathodeRay';
 const APP_ATTRIBUTION = `Based on Chaos CathodeRay (${APP_SOURCE_URL})`;
+// Beta tester guide (TESTERS.md) — online so it works even from a lone downloaded file.
+const APP_TESTERS_URL = `${APP_SOURCE_URL}/blob/main/TESTERS.md`;
 // Plugins & shaders made by users are theirs (NOTICE.md, Permission 2): no licence is assumed.
 const APP_PLUGIN_DEFAULT_LICENSE = 'unspecified';
 const APP_SHOW_FORMAT = 'chaoscathode-show';
@@ -41940,6 +41946,7 @@ function initStartScreen(restoredAutosave) {
 function fillLegalNotices(root = document) {
   root.querySelectorAll('.app-copyright').forEach(el => { el.textContent = APP_COPYRIGHT; });
   root.querySelectorAll('.app-license').forEach(el => { el.textContent = APP_LICENSE; });
+  root.querySelectorAll('.tester-guide-link').forEach(el => { el.href = APP_TESTERS_URL; });
   const set = (id, prop, val) => { const el = document.getElementById(id); if (el) el[prop] = val; };
   set('about-version', 'textContent', APP_VERSION);
   set('about-attribution', 'textContent', APP_ATTRIBUTION);
