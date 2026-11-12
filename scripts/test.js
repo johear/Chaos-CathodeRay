@@ -2521,6 +2521,28 @@ const vmScript = `
     assert(!isProgramHeld() && gen.speed === speed0 + 0.2, 'TAKE releases the hold with the edited setting');
     state.crossfade.active = false; state.crossfade.fromScene = null; gen.speed = speed0;
 
+    // Set parts: a face lit by several projectors gets one exact surface per projector with
+    // multi-projector output on, one through the best projector with it off, none if unlit.
+    applyWorkflowContext('architectural');
+    const facade = state.venueParts.find(pp => pp.kind === 'building');
+    const covF = getVenuePartFaceCoverage(facade, '+z');
+    assert(covF.length >= 1, 'The facade front is lit by at least one projector');
+    const mpF = ensureMultiProjectorState();
+    const nSurf0 = state.surfaces.length;
+    mpF.enabled = true;
+    mapMediaOntoVenuePart(facade.id, '+z');
+    const madeF = state.surfaces.filter(sf => sf.linkObject && sf.linkObject.kind === 'part' && sf.linkObject.id === facade.id);
+    assert(madeF.length === covF.length && new Set(madeF.map(sf => sf.linkObject.proj)).size === covF.length, 'Multi-projector output: one surface per projector that lights the face');
+    if (madeF.length > 1) assert(JSON.stringify(madeF[0].points) !== JSON.stringify(madeF[1].points), 'Each projector gets its own stage geometry for the face');
+    assert(madeF.every(sf => sf.linkObject.face === '+z'), 'The mapped face is kept on the surface link');
+    state.surfaces = state.surfaces.filter(sf => !madeF.includes(sf));
+    assert(getVenuePartFaceCoverage(facade, '-z').length === 0 && mapMediaOntoVenuePart(facade.id, '-z') === null, 'The back face (away from the projectors) is not mapped');
+    mpF.enabled = false;
+    mapMediaOntoVenuePart(facade.id, '+z');
+    assert(state.surfaces.filter(sf => sf.linkObject && sf.linkObject.id === facade.id).length === 1, 'Single output: one surface through the best projector');
+    state.surfaces = state.surfaces.filter(sf => !(sf.linkObject && sf.linkObject.id === facade.id));
+    assert(state.surfaces.length === nSurf0, 'Test surfaces cleaned up');
+
     // Calibration: POV crosshair pixel mapping round-trips; crosshair belongs to one projector.
     const fr = { sx: 0.8, sy: 1 };
     const px = alignRasterToPx(0.3, 0.7, fr, 800, 450);

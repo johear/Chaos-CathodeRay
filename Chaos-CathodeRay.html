@@ -13501,7 +13501,12 @@ function createSurface(type = 'quad', overrides = {}) {
     name: overrides.name || `${labelType} ${num}`,
     type,
     // Surface generated from a venue object (person silhouette / screen fit) that tracks it (05h).
-    linkObject: overrides.linkObject && overrides.linkObject.kind ? { kind: String(overrides.linkObject.kind), id: String(overrides.linkObject.id) } : null,
+    linkObject: overrides.linkObject && overrides.linkObject.kind ? {
+      kind: String(overrides.linkObject.kind),
+      id: String(overrides.linkObject.id),
+      ...(overrides.linkObject.face ? { face: String(overrides.linkObject.face) } : {}),
+      ...(overrides.linkObject.proj ? { proj: Number(overrides.linkObject.proj) } : {})
+    } : null,
     accent,
     groupId: overrides.groupId || null,
     visible: overrides.visible ?? true,
@@ -39665,7 +39670,7 @@ function linkKeyFor(link) {
   const refs = getPrevizProjectorRefs();
   if (link.kind === 'prop') { const p = getWorldPropById(link.id); return p ? `${refs.key}|${p.posM.join(',')}|${p.yawDeg}|${p.heightM}|${p.armsUp}` : 'gone'; }
   if (link.kind === 'screen') { const w = (state.worldScreens || []).find(x => x.id === link.id); return w ? `${refs.key}|${w.posM.join(',')}|${w.widthM}|${w.heightM}|${w.yawDeg}|${w.pitchDeg}` : 'gone'; }
-  if (link.kind === 'part') { const p = typeof getVenuePartById === 'function' ? getVenuePartById(link.id) : null; return p ? `${refs.key}|${p.posM.join(',')}|${p.sizeM.join(',')}|${p.yawDeg}|${link.face}` : 'gone'; }
+  if (link.kind === 'part') { const p = typeof getVenuePartById === 'function' ? getVenuePartById(link.id) : null; return p ? `${refs.key}|${p.posM.join(',')}|${p.sizeM.join(',')}|${p.yawDeg}|${link.face}|${link.proj || 0}` : 'gone'; }
   return '';
 }
 
@@ -40915,11 +40920,43 @@ function pickVenuePartFaceForProjector(part, hintNormal = null) {
   return best;
 }
 
+// Which projectors actually light a face: the face must point towards the projector and at
+// least a quarter of it must fall inside that projector's image. Best coverage first.
+function getVenuePartFaceCoverage(part, face) {
+  const g = getVenuePartFaceCorners(part, face);
+  const out = [];
+  for (const R of getPrevizProjectorRefs().refs) {
+    const eye = R.opt?.eye || R.scr.posM;
+    if (!Array.isArray(eye)) continue;
+    const toProj = [eye[0] - g.center[0], eye[1] - g.center[1], eye[2] - g.center[2]];
+    if (toProj[0] * g.normal[0] + toProj[1] * g.normal[1] + toProj[2] * g.normal[2] <= 0) continue; // back face
+    // Sample a 5×5 grid over the face: the share of it inside this projector's image.
+    const [c0, c1, c2, c3] = g.corners;
+    let inside = 0, total = 0;
+    for (let iy = 0; iy < 5; iy++) for (let ix = 0; ix < 5; ix++) {
+      const u = (ix + 0.5) / 5, v = (iy + 0.5) / 5;
+      const P = [0, 1, 2].map(k => (c0[k] * (1 - u) + c1[k] * u) * (1 - v) + (c3[k] * (1 - u) + c2[k] * u) * v);
+      total++;
+      const uv = worldToStageUvViaRef(P, R);
+      if (!uv) continue;
+      const pu = (uv[0] - R.crop.x) / R.crop.w, pv = (uv[1] - R.crop.y) / R.crop.h;
+      if (pu >= 0 && pu <= 1 && pv >= 0 && pv <= 1) inside++;
+    }
+    const coverage = inside / total;
+    if (coverage >= 0.25) out.push({ R, index: R.scr.index, coverage });
+  }
+  return out.sort((a, b) => b.coverage - a.coverage || a.index - b.index);
+}
+
+// link.proj pins the face to one projector (multi-projector mapping); otherwise the projector
+// that lights it best.
 function computeVenuePartFaceStagePoints(link) {
   const part = getVenuePartById(link.id);
   if (!part || part.enabled === false) return null;
   const g = getVenuePartFaceCorners(part, link.face || '+z');
-  const R = pickRefForWorldPoint(g.center);
+  let R = null;
+  if (link.proj) R = getPrevizProjectorRefs().refs.find(r => r.scr.index === Number(link.proj)) || null;
+  if (!R) R = getVenuePartFaceCoverage(part, link.face || '+z')[0]?.R || null;
   if (!R) return null;
   const pts = g.corners.map(c => worldToStageUvViaRef(c, R));
   return pts.every(Boolean) ? { type: 'quad', points: pts, ref: R.scr.index } : null;
@@ -40929,33 +40966,53 @@ function mapMediaOntoVenuePart(id, face = null) {
   const part = getVenuePartById(id);
   if (!part) return null;
   const f = face || pickVenuePartFaceForProjector(part, state.venueSel?.normal || null);
+  const faceNames = { '+z': 'front', '-z': 'back', '+x': 'right', '-x': 'left', '+y': 'top', '-y': 'bottom' };
+  const faceName = faceNames[f] || f;
   const existing = (state.surfaces || []).find(s => s.linkObject && s.linkObject.kind === 'part' && s.linkObject.id === id && s.linkObject.face === f);
   if (existing) {
     if (typeof selectSurface === 'function') selectSurface(existing.id);
     return existing;
   }
-  const link = { kind: 'part', id, face: f };
-  const g = computeVenuePartFaceStagePoints(link);
-  if (!g) {
-    if (typeof showToast === 'function') showToast('No projector lights that face — aim one at it first');
+  const cov = getVenuePartFaceCoverage(part, f);
+  if (!cov.length) {
+    if (typeof showToast === 'function') showToast(`No projector reaches the ${faceName} face of ${part.name} — aim one at it in BUILD first`);
     return null;
   }
+  const mp = state.multiProjector || {};
+  // With multi-projector output each projector shows its own part of the stage, so every
+  // projector that lights the face gets its own exactly fitted surface. Without it all
+  // projectors show the same stage, so one surface through the best projector.
+  const useProjs = mp.enabled ? cov : cov.slice(0, 1);
   if (typeof pushUndoCheckpoint === 'function') pushUndoCheckpoint('Map onto face');
-  const faceNames = { '+z': 'front', '-z': 'back', '+x': 'right', '-x': 'left', '+y': 'top', '-y': 'bottom' };
-  const surf = createSurface('quad', {
-    name: `◼ ${part.name} · ${faceNames[f] || f}`,
-    sourceId: state.activeSourceId || 'src_shards',
-    points: g.points,
-    linkObject: link
-  });
-  applyLinkedGeometry(surf);
-  state.surfaces.unshift(surf);
-  if (typeof selectSurface === 'function') selectSurface(surf.id);
+  const made = [];
+  for (const c of useProjs) {
+    const link = { kind: 'part', id, face: f, proj: c.index };
+    const g = computeVenuePartFaceStagePoints(link);
+    if (!g) continue;
+    const surf = createSurface('quad', {
+      name: `◼ ${part.name} · ${faceName}${useProjs.length > 1 ? ` · P${c.index}` : ''}`,
+      sourceId: state.activeSourceId || 'src_shards',
+      points: g.points,
+      linkObject: link
+    });
+    applyLinkedGeometry(surf);
+    state.surfaces.unshift(surf);
+    made.push(surf);
+  }
+  if (!made.length) {
+    if (typeof showToast === 'function') showToast(`No projector reaches the ${faceName} face of ${part.name} — aim one at it in BUILD first`);
+    return null;
+  }
+  if (typeof selectSurface === 'function') selectSurface(made[made.length - 1].id);
   state._sceneSyncRev = (state._sceneSyncRev || 0) + 1;
   if (typeof renderSurfaceList === 'function') renderSurfaceList();
   if (typeof scheduleAutosave === 'function') scheduleAutosave();
-  if (typeof showToast === 'function') showToast(`◼ ${part.name}: ${faceNames[f] || f} face mapped exactly through P${g.ref} — it follows the part and the projector`);
-  return surf;
+  if (typeof showToast === 'function') {
+    const via = made.map(sf => `P${sf.linkObject.proj}`).join(' + ');
+    const more = !mp.enabled && cov.length > 1 ? ` — also lit by ${cov.slice(1).map(c => 'P' + c.index).join(', ')}: turn on multi-projector output (Output tab) to map it through each` : ' — it follows the part and the projector';
+    showToast(`◼ ${part.name}: ${faceName} face mapped exactly through ${via}${more}`);
+  }
+  return made[made.length - 1];
 }
 
 // ----------------------------------------------------------------------------

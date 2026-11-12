@@ -1422,7 +1422,12 @@ function createSurface(type = 'quad', overrides = {}) {
     name: overrides.name || `${labelType} ${num}`,
     type,
     // Surface generated from a venue object (person silhouette / screen fit) that tracks it (05h).
-    linkObject: overrides.linkObject && overrides.linkObject.kind ? { kind: String(overrides.linkObject.kind), id: String(overrides.linkObject.id) } : null,
+    linkObject: overrides.linkObject && overrides.linkObject.kind ? {
+      kind: String(overrides.linkObject.kind),
+      id: String(overrides.linkObject.id),
+      ...(overrides.linkObject.face ? { face: String(overrides.linkObject.face) } : {}),
+      ...(overrides.linkObject.proj ? { proj: Number(overrides.linkObject.proj) } : {})
+    } : null,
     accent,
     groupId: overrides.groupId || null,
     visible: overrides.visible ?? true,

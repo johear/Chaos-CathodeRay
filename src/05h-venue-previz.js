@@ -3388,7 +3388,7 @@ function linkKeyFor(link) {
   const refs = getPrevizProjectorRefs();
   if (link.kind === 'prop') { const p = getWorldPropById(link.id); return p ? `${refs.key}|${p.posM.join(',')}|${p.yawDeg}|${p.heightM}|${p.armsUp}` : 'gone'; }
   if (link.kind === 'screen') { const w = (state.worldScreens || []).find(x => x.id === link.id); return w ? `${refs.key}|${w.posM.join(',')}|${w.widthM}|${w.heightM}|${w.yawDeg}|${w.pitchDeg}` : 'gone'; }
-  if (link.kind === 'part') { const p = typeof getVenuePartById === 'function' ? getVenuePartById(link.id) : null; return p ? `${refs.key}|${p.posM.join(',')}|${p.sizeM.join(',')}|${p.yawDeg}|${link.face}` : 'gone'; }
+  if (link.kind === 'part') { const p = typeof getVenuePartById === 'function' ? getVenuePartById(link.id) : null; return p ? `${refs.key}|${p.posM.join(',')}|${p.sizeM.join(',')}|${p.yawDeg}|${link.face}|${link.proj || 0}` : 'gone'; }
   return '';
 }
 
