@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chaos CathodeRay — Beta tester guide</title>
+<style>
+  :root {
+    --bg: #070b13; --panel: #0e1420; --ink: #e6edf7; --muted: #93a3ba; --line: rgba(255,255,255,0.09);
+    --brand: #6fd3ff; --warm: #ffcb7d; --emerald: #34e89e; --code-bg: rgba(111,211,255,0.08);
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f6f8fb; --panel: #ffffff; --ink: #141a24; --muted: #5a6577; --line: rgba(0,0,0,0.1);
+      --brand: #0a7fb5; --warm: #a8620a; --emerald: #0d8a5a; --code-bg: rgba(10,127,181,0.08);
+      color-scheme: light;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 16px 80px; }
+  header.hero { padding: 48px 0 24px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .mark { color: var(--brand); font-size: 22px; margin-right: 6px; }
+  h1 { font-size: clamp(26px, 5vw, 38px); line-height: 1.15; margin: 0 0 14px; letter-spacing: 0.01em; }
+  .hero p { margin: 8px 0; }
+  .hero p:first-of-type { font-size: 17px; }
+  .hero em { color: var(--muted); }
+  .launch { display: inline-flex; align-items: center; gap: 8px; margin: 16px 0 4px; padding: 10px 18px; border-radius: 10px; background: var(--brand); color: #04121c; font-weight: 700; text-decoration: none; }
+  .launch:hover { filter: brightness(1.08); }
+  .launch.ghost { background: transparent; color: var(--brand); border: 1px solid var(--brand); margin-left: 8px; }
+  li:has(> .check) { list-style: none; margin-left: -1.2em; }
+  .check { color: var(--brand); margin-right: 4px; }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 10px; border: 1px solid var(--emerald); color: var(--emerald); font-size: 12px; font-weight: 600; }
+  .toc { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; padding: 10px 0; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); font-size: 13px; }
+  .toc-lbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .toc a { color: var(--ink); text-decoration: none; opacity: 0.85; }
+  .toc a:hover { color: var(--brand); opacity: 1; }
+  h2 { font-size: 23px; margin: 44px 0 12px; padding-top: 8px; scroll-margin-top: 56px; }
+  h3 { font-size: 17px; margin: 28px 0 8px; color: var(--brand); scroll-margin-top: 56px; }
+  .anchor { color: var(--muted); text-decoration: none; margin-left: -0.9em; padding-right: 0.25em; opacity: 0; font-weight: 400; }
+  h2:hover .anchor, h3:hover .anchor { opacity: 0.6; }
+  a { color: var(--brand); }
+  strong { color: var(--ink); }
+  code { font: 0.86em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; }
+  pre code { background: none; padding: 0; font-size: 13px; line-height: 1.55; }
+  .cm { color: var(--muted); }
+  ul, ol { padding-left: 1.4em; }
+  li { margin: 4px 0; }
+  li > ul, li > ol { margin: 4px 0; }
+  ol > li::marker { color: var(--brand); font-weight: 700; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 36px 0; }
+  .start { background: var(--panel); border: 1px solid color-mix(in srgb, var(--brand) 40%, var(--line)); border-radius: 14px; padding: 4px 22px 14px; margin-top: 28px; }
+  .start h2 { margin-top: 18px; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--panel); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+  td:last-child { white-space: nowrap; }
+  footer { margin-top: 56px; color: var(--muted); font-size: 12px; }
+  @media (max-width: 600px) {
+    body { font-size: 14.5px; }
+    td:last-child { white-space: normal; }
+    .start { padding: 2px 14px 10px; }
+    .toc { position: static; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero"><h1><span class="mark" aria-hidden="true">◈</span>Beta tester guide: Chaos CathodeRay 0.1.0</h1>
+<a class="launch" href="./Chaos-CathodeRay.html">▶ Open Chaos CathodeRay</a> <a class="launch ghost" href="./README.html">Read Me</a>
+</header>
+<main><p>Thank you for testing! Chaos CathodeRay is a projection-mapping and show-control app that runs as a single web page. This beta has one goal: find what is <strong>confusing, broken or slow</strong> before it goes to everyone. Every report helps, even "I didn't understand this button".</p>
+<p><strong>▶ <a href="https://www.jonathan.ohear.com/Chaos/CathodeRay/Chaos-CathodeRay.html" target="_blank" rel="noopener">Open Chaos CathodeRay</a></strong>. You can also download <code>Chaos-CathodeRay.html</code> and double-click it; it works offline.</p>
+<hr>
+<h2 id="1-start-in-two-minutes"><a class="anchor" href="#1-start-in-two-minutes" aria-hidden="true">#</a>1. Start in two minutes</h2>
+<ol><li>Use <strong>Chrome or Edge on a desktop or laptop</strong>. Firefox and Safari work for mapping, but not for multi-screen output, MIDI or USB-DMX.</li><li>The <strong>Start screen</strong> asks <em>What are you making?</em> Pick the card closest to your idea, or choose <strong>Explore the demo show</strong> or <strong>Open a show file</strong>:<ul><li><strong>Quick 2D map:</strong> a wall, a window or a box.</li><li><strong>Theatre play:</strong> a set, a performer and a followspot.</li><li><strong>VJ set / club:</strong> live mixing.</li><li><strong>Rehearsal:</strong> keep what worked during a run-through.</li><li><strong>Architectural mapping:</strong> a building facade.</li></ul></li><li>Follow the hint that appears at the bottom of the screen.</li></ol>
+<h2 id="2-the-three-rooms-f1-f2-f3"><a class="anchor" href="#2-the-three-rooms-f1-f2-f3" aria-hidden="true">#</a>2. The three rooms (F1 · F2 · F3)</h2>
+<div class="table-wrap"><table><thead><tr><th></th><th>Room</th><th>What it's for</th></tr></thead><tbody><tr><td><strong>F1</strong></td><td><strong>BUILD</strong></td><td>The real space: venue, stage, set parts, screens, projectors and people.</td></tr><tr><td><strong>F2</strong></td><td><strong>MAP</strong></td><td>Put light onto things: drop media, drag corners onto objects, add FX, store cues.</td></tr><tr><td><strong>F3</strong></td><td><strong>LIVE</strong></td><td>Run the show: <strong>GO</strong> through cues, mix, run followspots.</td></tr></tbody></table></div>
+<p><strong>GO only exists in LIVE.</strong> If you switch from LIVE to MAP during a show, your edits are <strong>Blind</strong>: the audience keeps seeing the old look until you press <strong>TAKE</strong>, which fades your changes in.</p>
+<h2 id="3-finding-your-way"><a class="anchor" href="#3-finding-your-way" aria-hidden="true">#</a>3. Finding your way</h2>
+<ul><li><strong>The view bar</strong> is the same in every 3D view:<ul><li><strong>▦ Plan</strong>, <strong>⟲ 3D</strong>, <strong>🚶 Walk</strong> and <strong>📽 POV</strong> (look through a projector);</li><li>six sides, <strong>Top … Right</strong>;</li><li><strong>✎ Lines / ☀ Light</strong>. Lines gives a measured drawing; Light gives the rendered result.</li></ul></li><li><strong>Search anything:</strong> press <strong>/</strong> (or ⌘K / Ctrl+K) and type what you're looking for, e.g. "shutter", "blackout" or "calibrate".</li><li><strong>All shortcuts:</strong> press <strong>?</strong>.</li><li><strong>The ✓ / ⚠ chip</strong> in the top right is the <strong>Show Check</strong>. It lists what would go wrong in front of an audience (dark stage, missing media, unsaved changes…), each with a <strong>Fix</strong> button.</li></ul>
+<h2 id="4-your-work-and-starting-fresh"><a class="anchor" href="#4-your-work-and-starting-fresh" aria-hidden="true">#</a>4. Your work, and starting fresh</h2>
+<ul><li>Your work is <strong>autosaved in your own browser</strong>, on your computer only. Other testers never see it.</li><li>When you come back, a <strong>Welcome back</strong> bar offers <strong>Keep working</strong> or <strong>⟲ Start fresh</strong>.</li><li>To start over at any time, use <strong>Show ▾ → ⟲ Start fresh…</strong>. It offers a backup download first.</li><li><strong>On a shared or demo computer</strong>, add <strong><code>?fresh</code></strong> to the link (<code>…/Chaos-CathodeRay.html?fresh</code>). The app then opens clean, without restoring the last session.</li><li>To keep a show:<ul><li><strong>Show ▾ → Save Show</strong> writes a <code>.chaos.json</code> file. Media stays where it is on disk.</li><li><strong>Pack Show</strong> embeds the media, so you can move the show to another computer.</li></ul></li></ul>
+<h2 id="5-projector-output"><a class="anchor" href="#5-projector-output" aria-hidden="true">#</a>5. Projector output</h2>
+<ol><li>Connect a projector or a second screen.</li><li>Press <strong>Proj</strong> on the right-hand rail and allow pop-ups if the browser asks.</li><li>In the projector window, press <strong>F</strong> for full screen.</li><li>When everything is aligned, press <strong>Shift + P</strong> to lock the show.</li></ol>
+<p>You don't need a projector to test: the <strong>3D Venue</strong> view shows what each projector would put on stage.</p>
+<h2 id="6-reporting-a-problem-the-most-useful-thing-you-can-do"><a class="anchor" href="#6-reporting-a-problem-the-most-useful-thing-you-can-do" aria-hidden="true">#</a>6. Reporting a problem (the most useful thing you can do)</h2>
+<ol><li>Click the <strong>β 0.1</strong> badge (top left), or use <strong>Show ▾ → 🐞 Report a problem</strong>.</li><li>In <strong>What happened?</strong>, write what you did, what you expected and what happened instead.</li><li>Press <strong>✉ Send</strong>. You'll see <strong>"✓ Sent as Chaos CathodeRay Report 261112-1415"</strong>. Mention that number if we follow up.</li></ol>
+<ul><li><strong>If you're offline or Send fails,</strong> use <strong>✉ Email instead</strong>, <strong>📋 Copy report</strong> or <strong>⬇ Download .txt</strong>, and send it to <strong>jonathan@ohear.com</strong>.</li><li><strong>Privacy:</strong> the report contains your browser, screen and graphics card, the app's state and recent errors. It includes <strong>counts only, no file names or media</strong>, and nothing is sent until you press Send.</li><li><strong>Confusion counts too.</strong> "I couldn't find how to…" is just as valuable as a crash.</li></ul>
+<h2 id="7-what-to-try"><a class="anchor" href="#7-what-to-try" aria-hidden="true">#</a>7. What to try</h2>
+<p>Pick whichever matches your work; even ten minutes helps.</p>
+<p><strong>Quick 2D map</strong></p>
+<ul><li><span class="check" aria-hidden="true">☐</span> Start from <em>Quick 2D map</em>, drop a video or image onto the stage, and drag the four corners onto a real object (or a box on your desk).</li><li><span class="check" aria-hidden="true">☐</span> Add a second surface. Try a mask and the framing shutters.</li><li><span class="check" aria-hidden="true">☐</span> Save the show, reload the page, and check that everything comes back.</li></ul>
+<p><strong>Theatre play</strong></p>
+<ul><li><span class="check" aria-hidden="true">☐</span> Start from <em>Theatre play</em>. In BUILD, move the performer, add a platform or steps (<strong>+Part</strong>), and check the set in <strong>Front</strong> and <strong>Plan</strong> views.</li><li><span class="check" aria-hidden="true">☐</span> In MAP, store two or three cues. In LIVE, press <strong>GO</strong> and step through them.</li><li><span class="check" aria-hidden="true">☐</span> Pick up the followspot (<strong>F</strong> or <strong>PICK UP</strong>). Steer it, send it to a mark, and use <strong>🗺 Plot</strong>.</li><li><span class="check" aria-hidden="true">☐</span> Go from LIVE to MAP, change something, and check that the stage stays the same until you press <strong>TAKE</strong>.</li></ul>
+<p><strong>VJ set / club</strong></p>
+<ul><li><span class="check" aria-hidden="true">☐</span> Start from <em>VJ set / club</em>. Add a few sources and mix them on the <strong>radar</strong> (drag, flick, double-click to solo).</li><li><span class="check" aria-hidden="true">☐</span> Try audio-reactive modulation: right-click any slider.</li><li><span class="check" aria-hidden="true">☐</span> If you have one, try MIDI Learn (⌘M / Ctrl+M).</li></ul>
+<p><strong>Rehearsal</strong></p>
+<ul><li><span class="check" aria-hidden="true">☐</span> During a run in LIVE, press <strong>📌 Keep</strong> to store the current look, then refine it later in MAP.</li></ul>
+<p><strong>Architectural mapping</strong></p>
+<ul><li><span class="check" aria-hidden="true">☐</span> Start from <em>Architectural mapping</em>. Look at the facade in <strong>Front · Lines</strong>, select a face and choose <strong>Map onto</strong> it.</li><li><span class="check" aria-hidden="true">☐</span> Try <strong>📐 Align by points</strong>: click 4–8 known corners in 3D, then nudge the crosshairs with the arrow keys.</li></ul>
+<p><strong>Everyone</strong></p>
+<ul><li><span class="check" aria-hidden="true">☐</span> Is the <strong>Show Check</strong> right? Do its <strong>Fix</strong> buttons fix the problem?</li><li><span class="check" aria-hidden="true">☐</span> Is anything slow? The FPS badge at the bottom right shows the frame rate; click it for <strong>Fast</strong> quality.</li><li><span class="check" aria-hidden="true">☐</span> Is any label, button or message unclear? Tell us which one.</li></ul>
+<h2 id="8-known-limitations-in-0-1"><a class="anchor" href="#8-known-limitations-in-0-1" aria-hidden="true">#</a>8. Known limitations in 0.1</h2>
+<ul><li>While Blind, shader settings that aren't stored in a cue still change on stage.</li><li>Point calibration shows one crosshair at a time, and you move it with the arrow keys only (no dragging yet).</li><li>Mapping onto a set part uses one projector.</li><li>When you open a show on another computer, its media must be relinked. Use <strong>Pack Show</strong> to avoid this.</li><li><strong>Send</strong> needs an internet connection. Offline, use Email instead, Copy or Download.</li></ul>
+<h2 id="9-keyboard-essentials"><a class="anchor" href="#9-keyboard-essentials" aria-hidden="true">#</a>9. Keyboard essentials</h2>
+<div class="table-wrap"><table><thead><tr><th>Action</th><th>Keys</th></tr></thead><tbody><tr><td>Switch room</td><td><strong>F1</strong> / <strong>F2</strong> / <strong>F3</strong></td></tr><tr><td>Search any tool</td><td><strong>/</strong> or <strong>⌘K / Ctrl+K</strong></td></tr><tr><td>All shortcuts</td><td><strong>?</strong></td></tr><tr><td>GO / back (LIVE)</td><td><strong>Space</strong> / <strong>Shift+Space</strong></td></tr><tr><td>Blackout · restore</td><td><strong>B</strong> · hold <strong>B</strong> or <strong>Shift+B</strong></td></tr><tr><td>Lock the show</td><td><strong>Shift+P</strong></td></tr><tr><td>Pick up / fade out the active followspot</td><td><strong>F</strong> (LIVE)</td></tr><tr><td>Steer the followspot</td><td><strong>`</strong></td></tr><tr><td>Nudge (1 px · 10 px · 0.2 px)</td><td><strong>Arrows</strong> · <strong>Shift+Arrows</strong> · <strong>Alt+Arrows</strong></td></tr><tr><td>Undo / redo</td><td><strong>⌘Z / Ctrl+Z</strong> · <strong>⇧⌘Z / Ctrl+Shift+Z</strong></td></tr></tbody></table></div>
+<hr>
+<p>Thank you for helping. Questions or ideas that aren't bugs are welcome too: <strong>jonathan@ohear.com</strong>.</p>
+<p><em>Chaos CathodeRay is free software (AGPL-3.0-or-later) and comes with no warranty. See <a href="./LICENSE.html">LICENSE</a> and <a href="./NOTICE.html">NOTICE.md</a>.</em></p></main>
+<footer>Copyright © 2026 Jonathan O'Hear · <a href="./LICENSE.html">Licence</a> · <a href="./NOTICE.html">Notice &amp; terms</a> · <a href="./TRADEMARK.html">Trademark policy</a> · <a href="./CLA.html">Contributor licence agreement</a></footer>
+</div>
+</body>
+</html>

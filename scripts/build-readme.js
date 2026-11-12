@@ -23,7 +23,7 @@ function inline(text) {
   // Images: external images (badges) become text pills so the page works offline.
   s = s.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt) => `<span class="pill">${alt}</span>`);
   s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) => {
-    const htmlTwin = { './LICENSE': './LICENSE.html', './NOTICE.md': './NOTICE.html', './TRADEMARK.md': './TRADEMARK.html', './CLA.md': './CLA.html', './README.md': './README.html' };
+    const htmlTwin = { './LICENSE': './LICENSE.html', './NOTICE.md': './NOTICE.html', './TRADEMARK.md': './TRADEMARK.html', './CLA.md': './CLA.html', './README.md': './README.html', './TESTERS.md': './TESTERS.html' };
     if (htmlTwin[href]) href = htmlTwin[href];
     const ext = /^https?:/.test(href);
     return `<a href="${href}"${ext ? ' target="_blank" rel="noopener"' : ''}>${label}</a>`;
@@ -59,7 +59,7 @@ function convert(md) {
         j = nj;
         continue;
       }
-      items.push(inline(m[3]));
+      items.push(/^\[[ xX]\] /.test(m[3]) ? `<span class="check" aria-hidden="true">${/^\[[xX]\]/.test(m[3]) ? '☑' : '☐'}</span> ${inline(m[3].slice(4))}` : inline(m[3]));
       j++;
     }
     const tag = ordered ? 'ol' : 'ul';
@@ -161,6 +161,9 @@ const page = `<!DOCTYPE html>
   .hero em { color: var(--muted); }
   .launch { display: inline-flex; align-items: center; gap: 8px; margin: 16px 0 4px; padding: 10px 18px; border-radius: 10px; background: var(--brand); color: #04121c; font-weight: 700; text-decoration: none; }
   .launch:hover { filter: brightness(1.08); }
+  .launch.ghost { background: transparent; color: var(--brand); border: 1px solid var(--brand); margin-left: 8px; }
+  li:has(> .check) { list-style: none; margin-left: -1.2em; }
+  .check { color: var(--brand); margin-right: 4px; }
   .pill { display: inline-block; padding: 2px 9px; border-radius: 10px; border: 1px solid var(--emerald); color: var(--emerald); font-size: 12px; font-weight: 600; }
   .toc { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; padding: 10px 0; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); font-size: 13px; }
   .toc-lbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
@@ -218,12 +221,12 @@ ${rest.join('\n')
 fs.writeFileSync(path.join(root, 'README.html'), page, 'utf8');
 
 // Companion pages in the same look: LICENSE (verbatim text) + NOTICE, TRADEMARK, CLA (Markdown).
-function docPage(titleText, heading, bodyHtml, extraCss = '') {
+function docPage(titleText, heading, bodyHtml, extraCss = '', heroLink = '<a class="launch" href="./README.html">← Back to the Read Me</a>') {
   return page
     .replace(/<title>[^<]*<\/title>/, `<title>Chaos CathodeRay — ${titleText}</title>`)
     .replace(/<div class="wrap">[\s\S]*<\/div>\n<\/body>/, () => `<div class="wrap">
 <header class="hero"><h1><span class="mark" aria-hidden="true">◈</span>${heading}</h1>
-<a class="launch" href="./README.html">← Back to the Read Me</a>
+${heroLink}
 </header>
 <main>${bodyHtml}</main>
 <footer>Copyright © 2026 Jonathan O'Hear · <a href="./LICENSE.html">Licence</a> · <a href="./NOTICE.html">Notice &amp; terms</a> · <a href="./TRADEMARK.html">Trademark policy</a> · <a href="./CLA.html">Contributor licence agreement</a></footer>
@@ -238,13 +241,14 @@ fs.writeFileSync(path.join(root, 'LICENSE.html'), docPage('Licence (AGPL-3.0)', 
   '  pre.license { white-space: pre-wrap; word-break: break-word; }\n  pre.license code { font-size: 12.5px; }\n'), 'utf8');
 
 const built = ['LICENSE.html'];
-for (const [src, out, label] of [['NOTICE.md', 'NOTICE.html', 'Notice & terms'], ['TRADEMARK.md', 'TRADEMARK.html', 'Trademark policy'], ['CLA.md', 'CLA.html', 'Contributor licence agreement']]) {
+for (const [src, out, label] of [['TESTERS.md', 'TESTERS.html', 'Beta tester guide'], ['NOTICE.md', 'NOTICE.html', 'Notice & terms'], ['TRADEMARK.md', 'TRADEMARK.html', 'Trademark policy'], ['CLA.md', 'CLA.html', 'Contributor licence agreement']]) {
   const file = path.join(root, src);
   if (!fs.existsSync(file)) continue;
   const doc = convert(fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n'));
   const h1 = doc.out.find(x => x.startsWith('<h1>'));
   const heading = h1 ? h1.replace(/<\/?h1>/g, '') : label;
-  fs.writeFileSync(path.join(root, out), docPage(label, heading, doc.out.filter(x => x !== h1).join('\n')), 'utf8');
+  const hero = src === 'TESTERS.md' ? '<a class="launch" href="./Chaos-CathodeRay.html">▶ Open Chaos CathodeRay</a> <a class="launch ghost" href="./README.html">Read Me</a>' : undefined;
+  fs.writeFileSync(path.join(root, out), docPage(label, heading, doc.out.filter(x => x !== h1).join('\n'), '', hero), 'utf8');
   built.push(out);
 }
 console.log(`Built README.html (${toc.length} sections) + ${built.join(', ')}`);
