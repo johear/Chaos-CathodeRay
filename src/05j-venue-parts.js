@@ -332,6 +332,11 @@ function mapMediaOntoVenuePart(id, face = null) {
   const existing = (state.surfaces || []).filter(s => s.linkObject && s.linkObject.kind === 'part' && s.linkObject.id === id && s.linkObject.face === f);
   const cov = getVenuePartFaceCoverage(part, f);
   const mp0 = state.multiProjector || {};
+  // Shows saved before per-projector mapping have unpinned links: pin them to the projector that
+  // lights the face best, so adding the others never doubles that projector's image.
+  for (const s0 of existing) {
+    if (!s0.linkObject.proj && cov[0]) s0.linkObject.proj = cov[0].index;
+  }
   // Already mapped: with multi-projector output, add surfaces only for projectors that light the
   // face but don't have one yet (e.g. output switched on after mapping, or one was deleted).
   const missing = mp0.enabled ? cov.filter(c => !existing.some(s => Number(s.linkObject.proj) === c.index)) : [];

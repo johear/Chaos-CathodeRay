@@ -87,15 +87,17 @@ if ($canStore && count(glob($store . '/*.txt') ?: []) >= MAX_STORED) {
 }
 
 // Sender address for rate limiting. Behind a local reverse proxy (nginx → Apache on the same
-// host) REMOTE_ADDR is the proxy itself; only then trust the first X-Forwarded-For address.
+// host) REMOTE_ADDR is the proxy itself; only then trust the X-Forwarded-For address that
+// proxy appended (the last one — earlier entries come from the client and can be forged).
 function sender_ip(): string {
     $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '?');
     $xff = (string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? '');
     $isLocal = $ip === '127.0.0.1' || $ip === '::1' || strpos($ip, '10.') === 0 || strpos($ip, '192.168.') === 0
         || preg_match('/\A172\.(1[6-9]|2\d|3[01])\./', $ip);
     if ($isLocal && $xff !== '') {
-        $first = trim(explode(',', $xff)[0]);
-        if (filter_var($first, FILTER_VALIDATE_IP)) { $ip = $first; }
+        $hops = explode(',', $xff);
+        $last = trim((string)end($hops));
+        if (filter_var($last, FILTER_VALIDATE_IP)) { $ip = $last; }
     }
     return $ip;
 }

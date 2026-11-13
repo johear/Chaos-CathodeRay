@@ -3963,6 +3963,7 @@ function frameLoop(now) {
     const mixSrc = getMixbusSource();
     if (mixSrc) updateMixbusPhysics(mixSrc, dt);
     updateCrossfade(dt);
+    if (typeof advanceHeldClocks === 'function' && state.program && state.program.held) advanceHeldClocks(state.program, dt);
   } else {
     const spotsList = Array.isArray(state.spots) ? state.spots : [];
     for (const sp of spotsList) {
@@ -4139,8 +4140,16 @@ function hideBootVeil() {
   setTimeout(() => veil.remove(), 260);
 }
 
+let _bootOk = false;
 try {
   bootWebMapper();
+  _bootOk = true;
 } finally {
-  hideBootVeil();
+  if (_bootOk) {
+    hideBootVeil();
+  } else if (typeof document !== 'undefined') {
+    const sub = document.querySelector('#boot-veil .boot-sub');
+    if (sub) sub.textContent = 'Something went wrong while starting. Reload the page; if it happens again, use a recent desktop Chrome or Edge and tell us at talk.to.chaos.productions@gmail.com.';
+    document.getElementById('boot-veil')?.classList.add('stuck');
+  }
 }

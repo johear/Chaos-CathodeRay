@@ -2516,7 +2516,7 @@ const vmScript = `
     holdProgram({ silent: true });
     gen.speed = speed0 + 0.77; gen.playing = false; gen.simTime = t0 + 50;
     assert(hasPendingPreviewEdits(true), 'A generator speed/pause change counts as a pending Preview edit');
-    state.program.clocks[gen.id].last -= 2000; // two seconds pass
+    advanceHeldClocks(state.program, 2); // two seconds of frames pass
     const plHeld = applyHeldProgramToSyncPayload({ shaders: { [gen.id]: { speed: gen.speed, playing: false, simTime: gen.simTime } }, isfRuntimeStates: {}, videos: {}, textRuntimeStates: {} });
     assert(plHeld.shaders[gen.id].speed === speed0 && plHeld.shaders[gen.id].playing === true, 'Projectors keep the held speed and play state');
     assert(Math.abs(plHeld.shaders[gen.id].simTime - (t0 + 2 * speed0)) < 0.05, 'Stage clock runs on at the held speed, ignoring the paused/jumped Preview clock');
@@ -2526,12 +2526,23 @@ const vmScript = `
     gen.speed = speed0 + 0.2; takeProgram(0);
     assert(!isProgramHeld() && gen.speed === speed0 + 0.2 && gen.simTime >= stageT - 1e-9, 'TAKE releases with the edited setting and continues from the stage clock (no jump)');
     state.crossfade.active = false; state.crossfade.fromScene = null; gen.speed = speed0;
+    // A paused generator in Preview keeps its chosen frame at TAKE.
+    holdProgram({ silent: true });
+    gen.playing = false; gen.simTime = 12.345;
+    advanceHeldClocks(state.program, 1);
+    takeProgram(0);
+    assert(gen.simTime === 12.345, 'A generator paused on a chosen frame keeps it at TAKE');
+    state.crossfade.active = false; state.crossfade.fromScene = null; gen.playing = true;
     // A modulated parameter (LFO/audio) changing every frame is not a pending edit.
     holdProgram({ silent: true });
     state.modulators = [...(state.modulators || []), { id: 'mod_test', enabled: true, targetKey: 'source:' + gen.id + ':scale' }];
     gen.scale = (gen.scale || 1) + 0.33;
     assert(!hasPendingPreviewEdits(true), 'Modulated source parameters do not count as pending edits');
-    state.modulators = state.modulators.filter(m => m.id !== 'mod_test');
+    const surf0 = state.surfaces[0];
+    state.modulators.push({ id: 'mod_test2', enabled: true, targetKey: 'surface:' + surf0.id + ':feather' });
+    surf0.featherL = (surf0.featherL || 0) + 0.1; surf0.feather = (surf0.feather || 0) + 0.1;
+    assert(!hasPendingPreviewEdits(true), 'A modulated surface feather (fans out to featherL/R/T/B) is not a pending edit');
+    state.modulators = state.modulators.filter(m => m.id !== 'mod_test' && m.id !== 'mod_test2');
     releaseProgram({ silent: true });
 
     // Set parts lit by two projectors (P1 left, P2 right, both aimed at the facade).
@@ -2568,11 +2579,15 @@ const vmScript = `
     mpF.screens[0].enabled = false;
     assert.strictEqual(computeVenuePartFaceStagePoints(p1Surf.linkObject), null, 'A pinned projector that is switched off never falls back to another lens');
     mpF.screens[0].enabled = true;
-    // Each projector output draws only its own fitted surface; the full stage view shows both.
-    state.outputFeedTab = 'p' + mpF.screens[0].index;
-    assert(isSurfaceForCurrentOutput(p1Surf) && !isSurfaceForCurrentOutput(madeF.find(sf => sf !== p1Surf)), 'P1 preview draws only the P1 surface');
-    state.outputFeedTab = 'stage';
-    assert(madeF.every(isSurfaceForCurrentOutput), 'The full stage view draws both');
+    // Each projector window draws only its own fitted surface (multi-projector output on); with a
+    // single shared output, and in the operator's own composite, everything is drawn.
+    state.isProjectorRole = true; state.projectorScreenIndex = mpF.screens[0].index;
+    assert(isSurfaceForCurrentOutput(p1Surf) && !isSurfaceForCurrentOutput(madeF.find(sf => sf !== p1Surf)), 'P1 window draws only the P1 surface');
+    mpF.enabled = false;
+    assert(madeF.every(isSurfaceForCurrentOutput), 'Single shared output: nothing goes missing');
+    mpF.enabled = true;
+    state.isProjectorRole = false; state.projectorScreenIndex = 0;
+    assert(madeF.every(isSurfaceForCurrentOutput), 'The operator composite draws both (LED sampling, recordings)');
     assert(getVenuePartFaceCoverage(facade, '-z').length === 0 && mapMediaOntoVenuePart(facade.id, '-z') === null, 'The back face (away from the projectors) is not mapped');
     state.surfaces = state.surfaces.filter(sf => !madeF.includes(sf));
     mpF.enabled = false;
@@ -2632,6 +2647,17 @@ const vmScript = `
     for (let k = 0; k < 600; k++) { tSim += 33.33; updatePerfGovernor(33.33, tSim); }
     for (let k = 0; k < 200; k++) { tSim += 16.67; updatePerfGovernor(16.67, tSim); }
     assert(!perfGovernor.capped && getBrowserFrameRateCap() === 0, 'Cap lifted when frames speed up again (plugged in)');
+    // While capped, one long frame (GC, dialog) must not uncap and drop quality.
+    resetGov(); tSim = 200000;
+    for (let k = 0; k < 900; k++) { tSim += 33.33; updatePerfGovernor(33.33, tSim); }
+    assert(perfGovernor.capped, 'Capped before the hitch');
+    tSim += 300; updatePerfGovernor(300, tSim);
+    for (let k = 0; k < 30; k++) { tSim += 33.33; updatePerfGovernor(33.33, tSim); }
+    assert(perfGovernor.capped && perfGovernor.scale === 1, 'A single long frame does not uncap');
+    // Very slow machines (> 100 ms frames) are never declared capped.
+    resetGov(); tSim = 300000;
+    for (let k = 0; k < 300; k++) { const d = 60 + 240 * perfGovernor.scale; tSim += d; updatePerfGovernor(d, tSim); }
+    assert(!perfGovernor.capped, 'No false cap on a very slow machine');
     resetGov(); tSim = 0;
     for (let k = 0; k < 900; k++) { const d = 12 + 22 * perfGovernor.scale; tSim += d; updatePerfGovernor(d, tSim); }
     assert(!perfGovernor.capped && perfGovernor.scale < 1, 'A real GPU bottleneck still lowers quality (no false cap)');

@@ -38,22 +38,43 @@ function bumpSceneSyncRev() {
 // Signature of the stage look for pending-edit detection. Source parameters are compared
 // separately (sourceLooksDiffer); surface/mask properties driven by a modulator are left out,
 // because they change every frame without anyone editing them.
+// Parameters something else drives every frame: enabled modulators (LFO, audio, MIDI…) and the
+// tracks of a playing keyframe timeline. Their changes are not edits.
+function getDrivenTargetKeys() {
+  const keys = [];
+  for (const m of state.modulators || []) if (m && m.enabled !== false && m.targetKey) keys.push(String(m.targetKey));
+  const tl = state.timeline;
+  if (tl && tl.playing) for (const t of tl.tracks || []) if (t && t.targetKey) keys.push(String(t.targetKey));
+  return keys;
+}
+
+// Surface fields a driven target key writes (some properties fan out to stored fields).
+const DRIVEN_SURFACE_FIELDS = {
+  posX3d: ['pos3d'], posY3d: ['pos3d'], posZ3d: ['pos3d'],
+  rotX3d: ['rot3d'], rotY3d: ['rot3d'], rotZ3d: ['rot3d'],
+  scale3dUniform: ['scale3d'],
+  feather: ['feather', 'featherL', 'featherR', 'featherT', 'featherB']
+};
+
 function programLookSignature(snap) {
   if (!snap) return '';
   try {
-    const mod = new Set();
-    for (const m of state.modulators || []) {
-      if (!m || m.enabled === false || !m.targetKey) continue;
-      const parts = String(m.targetKey).split(':');
-      if (parts[0] === 'surface' || parts[0] === 'mask') mod.add(`${parts[0]}:${parts[1]}:${parts[2]}`);
+    const drop = new Set();
+    let masterFxDriven = false;
+    for (const key of getDrivenTargetKeys()) {
+      const parts = key.split(':');
+      if (parts[0] === 'masterfx') { masterFxDriven = true; continue; }
+      if (parts[0] !== 'surface' && parts[0] !== 'mask') continue;
+      if (parts[2] === 'fx') { drop.add(`${parts[0]}:${parts[1]}:fxChain`); continue; }
+      for (const f of DRIVEN_SURFACE_FIELDS[parts[2]] || [parts[2]]) drop.add(`${parts[0]}:${parts[1]}:${f}`);
     }
     const strip = (list, scope) => (list || []).map(o => {
-      if (!o || !mod.size) return o;
+      if (!o || !drop.size) return o;
       const c = { ...o };
-      for (const k of Object.keys(c)) if (mod.has(`${scope}:${o.id}:${k}`)) delete c[k];
+      for (const k of Object.keys(c)) if (drop.has(`${scope}:${o.id}:${k}`)) delete c[k];
       return c;
     });
-    return JSON.stringify([strip(snap.surfaces, 'surface'), snap.groups, strip(snap.masks, 'mask'), snap.masterFxChain, snap.mixbus, snap.textParams]);
+    return JSON.stringify([strip(snap.surfaces, 'surface'), snap.groups, strip(snap.masks, 'mask'), masterFxDriven ? null : snap.masterFxChain, snap.mixbus, snap.textParams]);
   } catch (_) {
     return '';
   }
@@ -66,7 +87,7 @@ let _programPendingCache = { t: 0, val: false };
 const HELD_SHADER_LOOK_KEYS = ['playing', 'speed', 'scale', 'detail', 'temp', 'palette', 'mirrorX'];
 
 function captureSourceLooks() {
-  const out = { shaders: {}, isf: {}, mirror: {} };
+  const out = { shaders: {}, isf: {}, text: {}, mirror: {} };
   for (const src of state.sources || []) {
     if (!src || !src.id) continue;
     if (src.kind === 'shader') {
@@ -77,6 +98,7 @@ function captureSourceLooks() {
       out.isf[src.id] = { isfValues: JSON.parse(JSON.stringify(src.isfValues || {})), mirrorX: !!src.mirrorX, speed: src.speed ?? 1.0, playing: src.playing !== false };
     } else if (src.kind === 'video' || src.kind === 'text') {
       out.mirror[src.id] = !!src.mirrorX;
+      if (src.kind === 'text') out.text[src.id] = { animSpeed: src.animSpeed ?? 1.0, playing: src.playing !== false };
     }
   }
   return out;
@@ -92,7 +114,10 @@ function applySourceLooks(looks) {
       src.mirrorX = looks.isf[src.id].mirrorX;
       if (looks.isf[src.id].speed !== undefined) src.speed = looks.isf[src.id].speed;
       if (looks.isf[src.id].playing !== undefined) src.playing = looks.isf[src.id].playing;
-    } else if (looks.mirror[src.id] !== undefined) src.mirrorX = looks.mirror[src.id];
+    } else if (looks.mirror[src.id] !== undefined) {
+      src.mirrorX = looks.mirror[src.id];
+      if (src.kind === 'text' && looks.text && looks.text[src.id]) Object.assign(src, looks.text[src.id]);
+    }
   }
 }
 
@@ -100,9 +125,8 @@ function applySourceLooks(looks) {
 // they are not "edits", so pending detection ignores them.
 function getModulatedSourceKeys() {
   const keys = new Set();
-  for (const mod of state.modulators || []) {
-    if (!mod || mod.enabled === false || !mod.targetKey) continue;
-    const parts = String(mod.targetKey).split(':');
+  for (const key of getDrivenTargetKeys()) {
+    const parts = key.split(':');
     if (parts[0] !== 'source') continue;
     keys.add(parts[2] === 'isf' ? `${parts[1]}:isf.${parts[3]}` : `${parts[1]}:${parts[2]}`);
   }
@@ -126,34 +150,44 @@ function sourceLooksDiffer(held, now) {
     const hv = h.isfValues || {}, nv = n.isfValues || {};
     for (const k of new Set([...Object.keys(hv), ...Object.keys(nv)])) if (!mod.has(`${id}:isf.${k}`) && !same(hv[k], nv[k])) return true;
   }
+  for (const [id, h] of Object.entries(held.text || {})) {
+    const n = (now.text || {})[id];
+    if (!n) continue;
+    for (const k of ['animSpeed', 'playing']) if (!mod.has(`${id}:${k}`) && !same(h[k], n[k])) return true;
+  }
   for (const [id, m] of Object.entries(held.mirror)) {
     if (now.mirror[id] !== undefined && now.mirror[id] !== m && !mod.has(`${id}:mirrorX`)) return true;
   }
   return false;
 }
 
-// While Blind, each generator on stage runs on its own held clock (held speed and play state);
-// the operator's clock may be paused or sped up in Preview. Handed back at TAKE / release.
-function advanceHeldClocks(p) {
+// While Blind, each generator / text animation on stage runs on its own held clock (held speed
+// and play state); the operator's clock may be paused or sped up in Preview. Advanced every frame
+// by the main loop with the same dt as the operator's clocks; handed back at TAKE / release.
+function advanceHeldClocks(p, dtSec) {
   if (!p || !p.clocks) return;
-  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-  const look = p.srcLook || { shaders: {}, isf: {} };
+  const dt = Math.max(0, Number(dtSec) || 0);
+  const look = p.srcLook || { shaders: {}, isf: {}, text: {} };
   for (const [id, c] of Object.entries(p.clocks)) {
-    const dt = Math.min(5, Math.max(0, (now - c.last) / 1000));
-    c.last = now;
     const l = look.shaders[id] || look.isf[id];
+    const tl = (look.text || {})[id];
+    if (tl) { if (tl.playing !== false) c.t += dt * (Number(tl.animSpeed ?? 1) || 0); continue; }
     if (!l || l.playing === false) continue;
     c.t += dt * (Number(l.speed ?? 1) || 0);
-    c.frame += Math.round(dt * 60);
+    c.frameAcc = (c.frameAcc || 0) + dt * 60;
+    const whole = Math.floor(c.frameAcc);
+    c.frame += whole;
+    c.frameAcc -= whole;
   }
 }
 
+// Running sources continue from the stage clock (no jump on stage). A source paused in Preview
+// keeps its chosen frame: TAKE puts exactly that on stage.
 function handHeldClocksBack(p) {
   if (!p || !p.clocks) return;
-  advanceHeldClocks(p);
   for (const src of state.sources || []) {
     const c = src && p.clocks[src.id];
-    if (!c) continue;
+    if (!c || src.playing === false) continue;
     src.simTime = c.t;
     if (src.kind === 'isf') src.frameIndex = c.frame;
   }
@@ -164,8 +198,9 @@ function hasPendingPreviewEdits(force = false) {
   const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
   if (!force && now - _programPendingCache.t < 400) return _programPendingCache.val;
   const p = state.program;
-  if (!p._sig) p._sig = programLookSignature(p.snap);
-  const val = programLookSignature(captureSceneSnapshot()) !== p._sig
+  // Both sides with today's set of driven parameters (a modulator added during the hold must not
+  // make the old signature differ).
+  const val = programLookSignature(captureSceneSnapshot()) !== programLookSignature(p.snap)
     || (!!p.srcLook && sourceLooksDiffer(p.srcLook, captureSourceLooks()));
   _programPendingCache = { t: now, val };
   return val;
@@ -183,9 +218,8 @@ function holdProgram(opts = {}) {
   p.srcLook = captureSourceLooks();
   p._srcSig = JSON.stringify(p.srcLook);
   p.clocks = {};
-  const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
   for (const src of state.sources || []) {
-    if (src && (src.kind === 'shader' || src.kind === 'isf')) p.clocks[src.id] = { t: Number(src.simTime) || 0, frame: src.frameIndex || 0, last: t0 };
+    if (src && (src.kind === 'shader' || src.kind === 'isf' || src.kind === 'text')) p.clocks[src.id] = { t: Number(src.simTime) || 0, frame: src.frameIndex || 0, frameAcc: 0 };
   }
   p.activeCueId = state.activeCueId || null;
   p.sinceMs = Date.now();
@@ -263,7 +297,6 @@ function revertPreviewToProgram(opts = {}) {
   else applySceneSnapshotImmediate(snap);
   applySourceLooks(p.srcLook);
   handHeldClocksBack(p); // Preview resumes from where the stage is
-  if (p.clocks) { const t = typeof performance !== 'undefined' ? performance.now() : Date.now(); for (const c of Object.values(p.clocks)) c.last = t; }
   if (typeof syncShaderStudioUI === 'function') syncShaderStudioUI(true);
   state.activeCueId = p.activeCueId;
   state.crossfade.active = false;
@@ -330,7 +363,6 @@ function applyHeldProgramToSyncPayload(payload) {
   if (p.snap.mixbus) payload.mixbusState = p.snap.mixbus;
   const sh = p.snap.shaders || {};
   const look = p.srcLook || { shaders: {}, isf: {}, mirror: {} };
-  advanceHeldClocks(p);
   const clocks = p.clocks || {};
   for (const id of Object.keys(payload.shaders || {})) {
     if (look.shaders[id]) payload.shaders[id] = { ...payload.shaders[id], ...look.shaders[id], ...(clocks[id] ? { simTime: clocks[id].t } : {}) };
@@ -344,6 +376,7 @@ function applyHeldProgramToSyncPayload(payload) {
   for (const bucket of ['videos', 'textRuntimeStates']) {
     for (const id of Object.keys(payload[bucket] || {})) {
       if (look.mirror[id] !== undefined) payload[bucket][id] = { ...payload[bucket][id], mirrorX: look.mirror[id] };
+      if (bucket === 'textRuntimeStates' && clocks[id]) payload[bucket][id] = { ...payload[bucket][id], simTime: clocks[id].t };
     }
   }
   return payload;

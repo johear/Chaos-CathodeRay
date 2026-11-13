@@ -3397,7 +3397,7 @@ function linkKeyFor(link) {
 
 function applyLinkedGeometry(surf) {
   const g = computeLinkedObjectStagePoints(surf.linkObject);
-  if (!g) return false;
+  if (!g) { surf._linkKey = linkKeyFor(surf.linkObject); return false; } // keep geometry; don't retry every frame
   surf.points = g.points.map(p => [Number(p[0].toFixed(5)), Number(p[1].toFixed(5))]);
   if (surf.type === 'polygon' && typeof syncPolygonUvsFromStage === 'function') syncPolygonUvsFromStage(surf);
   if (surf.type === 'quad' && typeof initSurfaceMeshFromCorners === 'function') initSurfaceMeshFromCorners(surf);
@@ -3824,7 +3824,7 @@ function tryBeginLinesDimensionEdit(mx, my, el) {
     if (done) return;
     done = true;
     window.removeEventListener('resize', cancel, true);
-    window.removeEventListener('wheel', cancel, true);
+    el.removeEventListener('wheel', cancel, true);
     if (apply && inp.value !== '' && inp.value.trim() !== initial) {
       if (applyLinesDimensionEdit(hit.edit, inp.value) && typeof showToast === 'function') showToast(`Set to ${Number(inp.value).toFixed(2)} m (⌘Z undoes)`);
     }
@@ -3839,7 +3839,7 @@ function tryBeginLinesDimensionEdit(mx, my, el) {
   // The view moved under it (zoom / resize): the box would point at the wrong label — cancel.
   const cancel = (e) => { if (!e || e.target !== inp) finish(false); };
   window.addEventListener('resize', cancel, true);
-  window.addEventListener('wheel', cancel, true);
+  el.addEventListener('wheel', cancel, true); // zooming this view moves the labels
   document.body.appendChild(inp);
   setTimeout(() => { inp.focus(); inp.select(); }, 0);
   return true;

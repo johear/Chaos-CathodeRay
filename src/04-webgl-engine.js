@@ -57,6 +57,7 @@ const perfGovernor = {
   probe: null,         // { since, floorEma } while testing whether full quality is any slower
   probeWaitMs: 30000,  // back-off between probes when the GPU really is the bottleneck
   probeAfter: 0,
+  overSince: 0,        // when frames first got slower than the cap (one long frame must not uncap)
   capped: false,       // the browser (or display) limits the frame rate — quality doesn't matter
   capMs: 0
 };
@@ -73,7 +74,10 @@ function updatePerfGovernor(dtMs, nowMs) {
   g.emaMs = g.emaMs * 0.9 + dt * 0.1;
   if (g.capped) {
     if (g.emaMs < g.capMs * 0.8) { g.capped = false; g.lastAdjust = nowMs; g.probeWaitMs = 30000; }  // cap lifted (plugged in)
-    else if (g.emaMs > g.capMs * 1.15) { g.capped = false; g.lastAdjust = nowMs; }                     // genuinely slower than the cap
+    else if (g.emaMs > g.capMs * 1.15) {                                                                  // genuinely slower than the cap…
+      if (!g.overSince) g.overSince = nowMs;
+      if (nowMs - g.overSince > 1200) { g.capped = false; g.overSince = 0; g.lastAdjust = nowMs; }      // …for more than a moment
+    } else g.overSince = 0;
   }
   const mode = state.renderQuality || 'auto';
   if (mode === 'full') { g.scale = 1.0; g.probe = null; return g.scale; }
@@ -115,7 +119,11 @@ function updatePerfGovernor(dtMs, nowMs) {
     g.floorSince = 0;
   } else if (g.emaMs > 19.5 && g.scale <= 0.5) {
     if (!g.floorSince) g.floorSince = nowMs;
-    if (nowMs - g.floorSince > 3000 && g.jitter < 2.5 && nowMs >= g.probeAfter) {
+    // Don't probe: when too slow to judge (> 100 ms), during a fade, or in LIVE with outputs open
+    // (a probe briefly loads the GPU at full quality).
+    const quietNow = !(state.crossfade && state.crossfade.active)
+      && !(state.room === 'live' && typeof isAnyOutputWindowOpen === 'function' && isAnyOutputWindowOpen());
+    if (nowMs - g.floorSince > 3000 && g.jitter < 2.5 && nowMs >= g.probeAfter && g.emaMs < 100 && quietNow) {
       g.probe = { since: nowMs, floorEma: g.emaMs };
       g.scale = 1.0;
       g.lastAdjust = nowMs;
@@ -128,6 +136,7 @@ function updatePerfGovernor(dtMs, nowMs) {
       g.scale = next;
       g.lastAdjust = nowMs;
       g.goodSince = nowMs;
+      if (g.scale >= 1.0) { g.probeWaitMs = 30000; g.probeAfter = 0; } // GPU recovered: a later cap is detected promptly
     }
   } else {
     g.goodSince = 0;
@@ -143,6 +152,7 @@ function isCalibCrosshairForSlice(ch, projSlice) {
 
 // 0 when not capped, otherwise the frame rate the browser allows (e.g. 30).
 function getBrowserFrameRateCap() {
+  if ((state.renderQuality || 'auto') !== 'auto') return 0;
   return perfGovernor.capped && perfGovernor.capMs > 0 ? Math.round(1000 / perfGovernor.capMs) : 0;
 }
 
@@ -1656,13 +1666,13 @@ function renderMesh3DGeometryPass(surf, effectiveSrc, mvpMat, modelMat, normalMa
   return true;
 }
 
-// Surfaces fitted through one projector (a set-part face mapped with several projectors)
-// belong to that projector's output only: its projector window draws them, the others don't.
-// The operator's full Stage / 3D views show all of them; a P1/P2 preview tab filters like the window.
+// Surfaces fitted through one projector (a set-part face mapped with several projectors) belong
+// to that projector's output only — but only when multi-projector output gives each window its own
+// slice. With a single shared output every window shows everything (nothing goes missing), and the
+// operator's own composite is never filtered (LED/DMX sampling and recordings use it).
 function getCurrentOutputProjectorIndex() {
-  if (state.isProjectorRole) return Number(state.projectorScreenIndex) || 0;
-  const t = state.outputFeedTab;
-  return typeof t === 'string' && /^p\d+$/.test(t) ? Number(t.slice(1)) : 0;
+  if (!state.isProjectorRole || !state.multiProjector || !state.multiProjector.enabled) return 0;
+  return Number(state.projectorScreenIndex) || 0;
 }
 
 function isSurfaceForCurrentOutput(surf) {
