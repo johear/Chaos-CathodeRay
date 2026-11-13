@@ -4032,7 +4032,7 @@ function frameLoop(now) {
       const capFps = typeof getBrowserFrameRateCap === 'function' ? getBrowserFrameRateCap() : 0;
       fpsBadgeEl.dataset.capped = capFps ? '1' : '';
       fpsBadgeEl.title = capFps
-        ? `The browser is limiting this page to ${capFps} fps — usually battery saving (Chrome Energy Saver switches on at 20% battery). Plug in the power, or turn Energy Saver off in Chrome Settings → Performance. Quality stays at 100%.`
+        ? `Frames arrive at a steady ${capFps} fps and lowering quality doesn't speed them up, so quality stays at 100%. Most often this is battery saving (Chrome Energy Saver switches on at 20% battery): plug in, or turn Energy Saver off in Chrome Settings → Performance. A ${capFps} Hz display or a very heavy scene can do the same.`
         : `Frame rate · render quality ${q.toUpperCase()} (${pct}% internal resolution for generators & 3D previz). Click to cycle Auto → Full → Fast.`;
       fpsBadgeEl.dataset.res = pct < 100 ? `${pct}%` : '';
     }
@@ -4132,6 +4132,7 @@ function bootWebMapper() {
 // The loading veil (body.html) covers the half-loaded page; lift it once the app is live —
 // even if boot throws, so a problem is visible instead of an endless "Loading…".
 function hideBootVeil() {
+  if (typeof window !== 'undefined') window.__ccBooted = true;
   const veil = typeof document !== 'undefined' ? document.getElementById('boot-veil') : null;
   if (!veil) return;
   veil.classList.add('done');

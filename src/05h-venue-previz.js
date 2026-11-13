@@ -3757,6 +3757,11 @@ function getLinesElevationEdit(sel) {
 function applyLinesDimensionEdit(edit, valueM) {
   const v = Number(valueM);
   if (!edit || !Number.isFinite(v)) return false;
+  const exists = edit.target === 'part' ? (typeof getVenuePartById === 'function' && getVenuePartById(edit.id))
+    : edit.target === 'screen' ? (state.worldScreens || []).some(w => w && w.id === edit.id)
+    : edit.target === 'prop' ? (typeof getWorldPropById === 'function' && getWorldPropById(edit.id))
+    : (state.multiProjector?.screens || []).some(s => s.index === Number(edit.id) && Array.isArray(s.posM));
+  if (!exists) return false;
   if (typeof pushUndoCheckpoint === 'function') pushUndoCheckpoint('Set dimension');
   if (edit.target === 'part') {
     const part = typeof getVenuePartById === 'function' ? getVenuePartById(edit.id) : null;
@@ -3794,8 +3799,13 @@ function applyLinesDimensionEdit(edit, valueM) {
 }
 
 // Click an underlined dimension in a Lines view → type the exact size. Enter applies, Esc cancels.
+// Typing sizes changes real geometry: only in BUILD / MAP and never under Show Lock.
+function canEditLinesDimensions() {
+  return state.room !== 'live' && !state.showLock && !state.isProjectorRole;
+}
+
 function tryBeginLinesDimensionEdit(mx, my, el) {
-  if (!el || !_linesDimHits.length) return false;
+  if (!el || !_linesDimHits.length || !canEditLinesDimensions()) return false;
   const hit = _linesDimHits.find(h => mx >= h.x - 3 && mx <= h.x + h.w + 3 && my >= h.y - 3 && my <= h.y + h.h + 3);
   if (!hit) return false;
   document.querySelector('.lines-dim-input')?.remove();
@@ -3806,13 +3816,16 @@ function tryBeginLinesDimensionEdit(mx, my, el) {
   inp.className = 'lines-dim-input';
   inp.setAttribute('aria-label', 'Size in metres — Enter to apply, Esc to cancel');
   inp.value = (Number(hit.value) || 0).toFixed(2);
+  const initial = inp.value; // unchanged text = no edit (avoids rounding 1.2345 → 1.23 on blur)
   inp.style.left = `${Math.round(r.left + hit.x + hit.w / 2 - 44)}px`;
   inp.style.top = `${Math.round(r.top + hit.y - 5)}px`;
   let done = false;
   const finish = (apply) => {
     if (done) return;
     done = true;
-    if (apply && inp.value !== '' && Math.abs(Number(inp.value) - Number(hit.value)) > 1e-6) {
+    window.removeEventListener('resize', cancel, true);
+    window.removeEventListener('wheel', cancel, true);
+    if (apply && inp.value !== '' && inp.value.trim() !== initial) {
       if (applyLinesDimensionEdit(hit.edit, inp.value) && typeof showToast === 'function') showToast(`Set to ${Number(inp.value).toFixed(2)} m (⌘Z undoes)`);
     }
     inp.remove();
@@ -3823,6 +3836,10 @@ function tryBeginLinesDimensionEdit(mx, my, el) {
     else if (e.key === 'Escape') finish(false);
   });
   inp.addEventListener('blur', () => finish(true));
+  // The view moved under it (zoom / resize): the box would point at the wrong label — cancel.
+  const cancel = (e) => { if (!e || e.target !== inp) finish(false); };
+  window.addEventListener('resize', cancel, true);
+  window.addEventListener('wheel', cancel, true);
   document.body.appendChild(inp);
   setTimeout(() => { inp.focus(); inp.select(); }, 0);
   return true;
@@ -3996,7 +4013,7 @@ function drawVenueDimension(ctx, a, b, label, col, edit = null) {
   ctx.fillRect(mx - tw / 2, my - 6, tw, 12);
   ctx.fillStyle = col; ctx.textAlign = 'center';
   ctx.fillText(label, mx, my + 3);
-  if (edit) {
+  if (edit && canEditLinesDimensions()) {
     // Editable: dotted underline; click to type an exact value.
     ctx.strokeStyle = col; ctx.setLineDash([1.5, 1.5]);
     ctx.beginPath(); ctx.moveTo(mx - tw / 2 + 3, my + 6.5); ctx.lineTo(mx + tw / 2 - 3, my + 6.5); ctx.stroke();

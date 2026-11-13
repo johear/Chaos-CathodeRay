@@ -3991,7 +3991,7 @@
     .about-legal { padding: 8px 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.04); }
     .about-links a.btn { text-decoration: none; }
     a.tester-guide-link { text-decoration: none; }
-    #fps-badge[data-capped="1"]::after { content: "POWER CAP"; color: var(--warm, #ffcb7d); }
+    #fps-badge[data-capped="1"]::after { content: "FPS CAP"; color: var(--warm, #ffcb7d); }
     /* Loading veil: visible from first paint until boot finishes */
     #boot-veil { position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center; background: #070b13; color: #e6edf7; transition: opacity 0.25s ease; }
     #boot-veil.done { opacity: 0; pointer-events: none; }
@@ -4004,6 +4004,9 @@
     @keyframes boot-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
     @media (prefers-reduced-motion: reduce) { #boot-veil .boot-bar span { animation: none; width: 100%; opacity: 0.5; } }
     .lines-dim-input { position: fixed; z-index: 90; width: 88px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--warm, #ffcb7d); background: #0a0e16; color: #ffcb7d; font: 700 11px ui-monospace, SFMono-Regular, Menlo, monospace; text-align: center; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6); }
+    #boot-veil.bare { background: #000; }
+    #boot-veil.bare .boot-card { display: none; }
+    #boot-veil.stuck .boot-bar { display: none; }
 
   </style>
 </head>
@@ -4017,6 +4020,23 @@
       <noscript><div class="boot-sub">Chaos CathodeRay needs JavaScript and a recent desktop Chrome or Edge.</div></noscript>
     </div>
   </div>
+  <script>
+    // Before the app script arrives: projector windows load on plain black; if starting fails
+    // (or takes very long) the loading screen says so instead of spinning forever.
+    (function () {
+      var veil = document.getElementById('boot-veil');
+      if (!veil) return;
+      if (/[?&]role=/.test(location.search)) veil.classList.add('bare');
+      var say = function (msg) {
+        var sub = veil.querySelector('.boot-sub');
+        if (sub && !window.__ccBooted) { sub.textContent = msg; veil.classList.add('stuck'); }
+      };
+      window.addEventListener('error', function () {
+        say('Something went wrong while starting. Reload the page; if it happens again, use a recent desktop Chrome or Edge and tell us at talk.to.chaos.productions@gmail.com.');
+      });
+      setTimeout(function () { say('Still loading… on a slow connection this can take a while. If nothing changes, reload the page.'); }, 25000);
+    })();
+  </script>
   <div id="projector-banner">
     CHAOS CATHODERAY PROJECTOR — Click Here or Press <strong>F</strong> for Fullscreen • Connected to Studio Controller
   </div>
@@ -16375,39 +16395,66 @@ const glCaps = {
 // ----------------------------------------------------------------------------
 const perfGovernor = {
   emaMs: 16.7,
-  jitter: 0,           // average |frame interval − ema|: tiny when the browser paces frames to a fixed rate
+  jitter: 0,           // average |frame interval − ema|: small when frames arrive at a steady rate
   scale: 1.0,          // 0.5 .. 1.0, applied to generator sources & previz
   ceiling: 1.0,        // last scale that proved too slow is avoided for a while
   ceilingUntil: 0,
   goodSince: 0,
   lastAdjust: 0,
-  emaAtStart: 0,       // frame interval when the governor started lowering quality
-  floorSince: 0,       // how long we've sat at the lowest scale without it helping
-  capped: false,       // the browser itself limits the frame rate (e.g. battery saving → 30 fps)
+  floorSince: 0,       // when we settled at the lowest scale while still slow
+  probe: null,         // { since, floorEma } while testing whether full quality is any slower
+  probeWaitMs: 30000,  // back-off between probes when the GPU really is the bottleneck
+  probeAfter: 0,
+  capped: false,       // the browser (or display) limits the frame rate — quality doesn't matter
   capMs: 0
 };
 
-// Lowering resolution only helps when the GPU is the bottleneck. When the browser caps the
-// page (Chrome Energy Saver, low battery, background throttling), frames arrive every 33.3 ms
-// no matter what — so if dropping to the lowest scale didn't change a steady interval at all,
-// we're capped: go back to full quality instead of blurring the picture for nothing.
+// Lowering resolution only helps when the GPU is the bottleneck. When the browser caps the page
+// (Chrome Energy Saver on battery, a 30 Hz display…) frames arrive every 33.3 ms no matter what.
+// So once we sit at the lowest scale and are still slow, we run a short A/B test: go back to full
+// quality for ~1.5 s. Same frame rate → capped: stay at 100 %. Slower → real GPU limit: back down,
+// and wait longer before trying again.
 function updatePerfGovernor(dtMs, nowMs) {
   const g = perfGovernor;
   const dt = clamp(dtMs, 4, 120);
   g.jitter = g.jitter * 0.9 + Math.abs(dt - g.emaMs) * 0.1;
   g.emaMs = g.emaMs * 0.9 + dt * 0.1;
-  const mode = state.renderQuality || 'auto';
-  if (mode === 'full') { g.scale = 1.0; return g.scale; }
-  if (mode === 'fast') { g.scale = 0.5; return g.scale; }
   if (g.capped) {
-    if (g.emaMs < g.capMs * 0.8) { g.capped = false; g.emaAtStart = 0; g.lastAdjust = nowMs; }        // cap lifted (plugged in)
-    else if (g.emaMs > g.capMs * 1.15) { g.capped = false; g.emaAtStart = 0; g.lastAdjust = nowMs; } // genuinely slower than the cap
-    else { g.scale = 1.0; return g.scale; }
+    if (g.emaMs < g.capMs * 0.8) { g.capped = false; g.lastAdjust = nowMs; g.probeWaitMs = 30000; }  // cap lifted (plugged in)
+    else if (g.emaMs > g.capMs * 1.15) { g.capped = false; g.lastAdjust = nowMs; }                     // genuinely slower than the cap
   }
+  const mode = state.renderQuality || 'auto';
+  if (mode === 'full') { g.scale = 1.0; g.probe = null; return g.scale; }
+  if (mode === 'fast') { g.scale = 0.5; g.probe = null; return g.scale; }
+  if (g.capped) { g.scale = 1.0; return g.scale; }
+
+  if (g.probe) {
+    const age = nowMs - g.probe.since;
+    if (age < 1500 || (age < 3000 && g.jitter > 2.5)) return g.scale;
+    const fullEma = g.emaMs;
+    const floorEma = g.probe.floorEma;
+    g.probe = null;
+    g.floorSince = 0;
+    g.lastAdjust = nowMs;
+    if (fullEma <= floorEma * 1.08) {
+      g.capped = true;
+      g.capMs = Math.max(fullEma, floorEma);
+      g.scale = 1.0;
+      g.ceiling = 1.0;
+      g.ceilingUntil = 0;
+    } else {
+      g.scale = 0.5;
+      g.ceiling = 0.5;
+      g.ceilingUntil = nowMs + 12000;
+      g.probeAfter = nowMs + g.probeWaitMs;
+      g.probeWaitMs = Math.min(300000, g.probeWaitMs * 2);
+    }
+    return g.scale;
+  }
+
   if (nowMs - g.lastAdjust < 700) return g.scale;
   if (nowMs > g.ceilingUntil) g.ceiling = 1.0;
   if (g.emaMs > 19.5 && g.scale > 0.5) {
-    if (g.scale >= 1.0 || !g.emaAtStart) g.emaAtStart = g.emaMs;
     g.ceiling = g.scale;
     g.ceilingUntil = nowMs + 12000;
     g.scale = Math.max(0.5, g.scale - 0.125);
@@ -16416,14 +16463,9 @@ function updatePerfGovernor(dtMs, nowMs) {
     g.floorSince = 0;
   } else if (g.emaMs > 19.5 && g.scale <= 0.5) {
     if (!g.floorSince) g.floorSince = nowMs;
-    const noBetter = g.emaAtStart > 0 && Math.abs(g.emaMs - g.emaAtStart) < g.emaAtStart * 0.08;
-    if (nowMs - g.floorSince > 3000 && noBetter && g.jitter < 2.5) {
-      g.capped = true;
-      g.capMs = g.emaMs;
+    if (nowMs - g.floorSince > 3000 && g.jitter < 2.5 && nowMs >= g.probeAfter) {
+      g.probe = { since: nowMs, floorEma: g.emaMs };
       g.scale = 1.0;
-      g.ceiling = 1.0;
-      g.ceilingUntil = 0;
-      g.floorSince = 0;
       g.lastAdjust = nowMs;
     }
   } else if (g.emaMs < 17.6) {
@@ -16439,6 +16481,12 @@ function updatePerfGovernor(dtMs, nowMs) {
     g.goodSince = 0;
   }
   return g.scale;
+}
+
+// A projector's alignment crosshair (ch.screen) is drawn only by that projector's output;
+// screen 0 = every output (pin/PnP helpers, single-output setups).
+function isCalibCrosshairForSlice(ch, projSlice) {
+  return !(ch && ch.screen && projSlice && projSlice.index !== ch.screen);
 }
 
 // 0 when not capped, otherwise the frame rate the browser allows (e.g. 30).
@@ -17956,6 +18004,22 @@ function renderMesh3DGeometryPass(surf, effectiveSrc, mvpMat, modelMat, normalMa
   return true;
 }
 
+// Surfaces fitted through one projector (a set-part face mapped with several projectors)
+// belong to that projector's output only: its projector window draws them, the others don't.
+// The operator's full Stage / 3D views show all of them; a P1/P2 preview tab filters like the window.
+function getCurrentOutputProjectorIndex() {
+  if (state.isProjectorRole) return Number(state.projectorScreenIndex) || 0;
+  const t = state.outputFeedTab;
+  return typeof t === 'string' && /^p\d+$/.test(t) ? Number(t.slice(1)) : 0;
+}
+
+function isSurfaceForCurrentOutput(surf) {
+  const p = Number(surf && (surf.outputProj || (surf.linkObject && surf.linkObject.proj))) || 0;
+  if (!p) return true;
+  const o = getCurrentOutputProjectorIndex();
+  return !o || o === p;
+}
+
 function renderSceneDescriptorToFbo(sceneDesc, outFbo, effStageAspect) {
   const surfaces = sceneDesc.surfaces || [];
   const groups = sceneDesc.groups || state.groups || [];
@@ -17998,6 +18062,7 @@ function renderSceneDescriptorToFbo(sceneDesc, outFbo, effStageAspect) {
     if (!eff.visible) continue;
     if (anySolo && !eff.solo) continue;
     if (eff.opacity <= 0.001) continue;
+    if (!isSurfaceForCurrentOutput(surf)) continue;
     if (surf.type !== 'mesh3d' && !surf.points) continue;
     if (surf.type === 'polygon' && surf.points.length < 3) continue;
     if (surf.type === 'line' && surf.points.length < 2) continue;
@@ -18824,9 +18889,9 @@ function renderWebGLWorkspace(dpr) {
           }
 
           const ch = state.calibCrosshair;
-          const chActive = !state.showLock && ch && ch.active && performance.now() < ch.expireMs
-            && !(ch.screen && projSlice && projSlice.index !== ch.screen); // a projector's own alignment crosshair
-          if (ch && ch.active && !chActive) ch.active = false;
+          const chLive = !!(ch && ch.active && performance.now() < ch.expireMs);
+          if (ch && ch.active && !chLive) ch.active = false; // expiry only — never because another projector is drawn
+          const chActive = chLive && !state.showLock && isCalibCrosshairForSlice(ch, projSlice);
           gl.uniform3f(
             xu.uCalibCrosshair,
             chActive ? ch.x : 0.5,
@@ -20164,6 +20229,7 @@ function serializeSurfaceSyncArray(list) {
     type: s.type,
     accent: s.accent,
     groupId: s.groupId || null,
+    outputProj: s.linkObject && s.linkObject.proj ? Number(s.linkObject.proj) : 0,
     visible: s.visible,
     solo: s.solo,
     showCalGrid: !state.showLock && !!s.showCalGrid,
@@ -40040,6 +40106,11 @@ function getLinesElevationEdit(sel) {
 function applyLinesDimensionEdit(edit, valueM) {
   const v = Number(valueM);
   if (!edit || !Number.isFinite(v)) return false;
+  const exists = edit.target === 'part' ? (typeof getVenuePartById === 'function' && getVenuePartById(edit.id))
+    : edit.target === 'screen' ? (state.worldScreens || []).some(w => w && w.id === edit.id)
+    : edit.target === 'prop' ? (typeof getWorldPropById === 'function' && getWorldPropById(edit.id))
+    : (state.multiProjector?.screens || []).some(s => s.index === Number(edit.id) && Array.isArray(s.posM));
+  if (!exists) return false;
   if (typeof pushUndoCheckpoint === 'function') pushUndoCheckpoint('Set dimension');
   if (edit.target === 'part') {
     const part = typeof getVenuePartById === 'function' ? getVenuePartById(edit.id) : null;
@@ -40077,8 +40148,13 @@ function applyLinesDimensionEdit(edit, valueM) {
 }
 
 // Click an underlined dimension in a Lines view → type the exact size. Enter applies, Esc cancels.
+// Typing sizes changes real geometry: only in BUILD / MAP and never under Show Lock.
+function canEditLinesDimensions() {
+  return state.room !== 'live' && !state.showLock && !state.isProjectorRole;
+}
+
 function tryBeginLinesDimensionEdit(mx, my, el) {
-  if (!el || !_linesDimHits.length) return false;
+  if (!el || !_linesDimHits.length || !canEditLinesDimensions()) return false;
   const hit = _linesDimHits.find(h => mx >= h.x - 3 && mx <= h.x + h.w + 3 && my >= h.y - 3 && my <= h.y + h.h + 3);
   if (!hit) return false;
   document.querySelector('.lines-dim-input')?.remove();
@@ -40089,13 +40165,16 @@ function tryBeginLinesDimensionEdit(mx, my, el) {
   inp.className = 'lines-dim-input';
   inp.setAttribute('aria-label', 'Size in metres — Enter to apply, Esc to cancel');
   inp.value = (Number(hit.value) || 0).toFixed(2);
+  const initial = inp.value; // unchanged text = no edit (avoids rounding 1.2345 → 1.23 on blur)
   inp.style.left = `${Math.round(r.left + hit.x + hit.w / 2 - 44)}px`;
   inp.style.top = `${Math.round(r.top + hit.y - 5)}px`;
   let done = false;
   const finish = (apply) => {
     if (done) return;
     done = true;
-    if (apply && inp.value !== '' && Math.abs(Number(inp.value) - Number(hit.value)) > 1e-6) {
+    window.removeEventListener('resize', cancel, true);
+    window.removeEventListener('wheel', cancel, true);
+    if (apply && inp.value !== '' && inp.value.trim() !== initial) {
       if (applyLinesDimensionEdit(hit.edit, inp.value) && typeof showToast === 'function') showToast(`Set to ${Number(inp.value).toFixed(2)} m (⌘Z undoes)`);
     }
     inp.remove();
@@ -40106,6 +40185,10 @@ function tryBeginLinesDimensionEdit(mx, my, el) {
     else if (e.key === 'Escape') finish(false);
   });
   inp.addEventListener('blur', () => finish(true));
+  // The view moved under it (zoom / resize): the box would point at the wrong label — cancel.
+  const cancel = (e) => { if (!e || e.target !== inp) finish(false); };
+  window.addEventListener('resize', cancel, true);
+  window.addEventListener('wheel', cancel, true);
   document.body.appendChild(inp);
   setTimeout(() => { inp.focus(); inp.select(); }, 0);
   return true;
@@ -40279,7 +40362,7 @@ function drawVenueDimension(ctx, a, b, label, col, edit = null) {
   ctx.fillRect(mx - tw / 2, my - 6, tw, 12);
   ctx.fillStyle = col; ctx.textAlign = 'center';
   ctx.fillText(label, mx, my + 3);
-  if (edit) {
+  if (edit && canEditLinesDimensions()) {
     // Editable: dotted underline; click to type an exact value.
     ctx.strokeStyle = col; ctx.setLineDash([1.5, 1.5]);
     ctx.beginPath(); ctx.moveTo(mx - tw / 2 + 3, my + 6.5); ctx.lineTo(mx + tw / 2 - 3, my + 6.5); ctx.stroke();
@@ -40328,10 +40411,25 @@ function bumpSceneSyncRev() {
 }
 
 // Look-only comparison signature (spots / DMX / modulators are live layers).
+// Signature of the stage look for pending-edit detection. Source parameters are compared
+// separately (sourceLooksDiffer); surface/mask properties driven by a modulator are left out,
+// because they change every frame without anyone editing them.
 function programLookSignature(snap) {
   if (!snap) return '';
   try {
-    return JSON.stringify([snap.surfaces, snap.groups, snap.masks, snap.masterFxChain, snap.mixbus, snap.shaders, snap.isfParams, snap.textParams]);
+    const mod = new Set();
+    for (const m of state.modulators || []) {
+      if (!m || m.enabled === false || !m.targetKey) continue;
+      const parts = String(m.targetKey).split(':');
+      if (parts[0] === 'surface' || parts[0] === 'mask') mod.add(`${parts[0]}:${parts[1]}:${parts[2]}`);
+    }
+    const strip = (list, scope) => (list || []).map(o => {
+      if (!o || !mod.size) return o;
+      const c = { ...o };
+      for (const k of Object.keys(c)) if (mod.has(`${scope}:${o.id}:${k}`)) delete c[k];
+      return c;
+    });
+    return JSON.stringify([strip(snap.surfaces, 'surface'), snap.groups, strip(snap.masks, 'mask'), snap.masterFxChain, snap.mixbus, snap.textParams]);
   } catch (_) {
     return '';
   }
@@ -40352,7 +40450,7 @@ function captureSourceLooks() {
       for (const k of HELD_SHADER_LOOK_KEYS) o[k] = src[k];
       out.shaders[src.id] = o;
     } else if (src.kind === 'isf') {
-      out.isf[src.id] = { isfValues: JSON.parse(JSON.stringify(src.isfValues || {})), mirrorX: !!src.mirrorX };
+      out.isf[src.id] = { isfValues: JSON.parse(JSON.stringify(src.isfValues || {})), mirrorX: !!src.mirrorX, speed: src.speed ?? 1.0, playing: src.playing !== false };
     } else if (src.kind === 'video' || src.kind === 'text') {
       out.mirror[src.id] = !!src.mirrorX;
     }
@@ -40368,7 +40466,72 @@ function applySourceLooks(looks) {
     else if (src.kind === 'isf' && looks.isf[src.id]) {
       src.isfValues = JSON.parse(JSON.stringify(looks.isf[src.id].isfValues || {}));
       src.mirrorX = looks.isf[src.id].mirrorX;
+      if (looks.isf[src.id].speed !== undefined) src.speed = looks.isf[src.id].speed;
+      if (looks.isf[src.id].playing !== undefined) src.playing = looks.isf[src.id].playing;
     } else if (looks.mirror[src.id] !== undefined) src.mirrorX = looks.mirror[src.id];
+  }
+}
+
+// Source parameters driven by an active modulator (LFO, audio, MIDI…) change every frame:
+// they are not "edits", so pending detection ignores them.
+function getModulatedSourceKeys() {
+  const keys = new Set();
+  for (const mod of state.modulators || []) {
+    if (!mod || mod.enabled === false || !mod.targetKey) continue;
+    const parts = String(mod.targetKey).split(':');
+    if (parts[0] !== 'source') continue;
+    keys.add(parts[2] === 'isf' ? `${parts[1]}:isf.${parts[3]}` : `${parts[1]}:${parts[2]}`);
+  }
+  return keys;
+}
+
+// True when a held source look differs from now (only sources that existed when the hold began).
+function sourceLooksDiffer(held, now) {
+  if (!held || !now) return false;
+  const mod = getModulatedSourceKeys();
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  for (const [id, h] of Object.entries(held.shaders)) {
+    const n = now.shaders[id];
+    if (!n) continue;
+    for (const k of Object.keys(h)) if (!mod.has(`${id}:${k}`) && !same(h[k], n[k])) return true;
+  }
+  for (const [id, h] of Object.entries(held.isf)) {
+    const n = now.isf[id];
+    if (!n) continue;
+    for (const k of ['mirrorX', 'speed', 'playing']) if (!mod.has(`${id}:${k}`) && !same(h[k], n[k])) return true;
+    const hv = h.isfValues || {}, nv = n.isfValues || {};
+    for (const k of new Set([...Object.keys(hv), ...Object.keys(nv)])) if (!mod.has(`${id}:isf.${k}`) && !same(hv[k], nv[k])) return true;
+  }
+  for (const [id, m] of Object.entries(held.mirror)) {
+    if (now.mirror[id] !== undefined && now.mirror[id] !== m && !mod.has(`${id}:mirrorX`)) return true;
+  }
+  return false;
+}
+
+// While Blind, each generator on stage runs on its own held clock (held speed and play state);
+// the operator's clock may be paused or sped up in Preview. Handed back at TAKE / release.
+function advanceHeldClocks(p) {
+  if (!p || !p.clocks) return;
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const look = p.srcLook || { shaders: {}, isf: {} };
+  for (const [id, c] of Object.entries(p.clocks)) {
+    const dt = Math.min(5, Math.max(0, (now - c.last) / 1000));
+    c.last = now;
+    const l = look.shaders[id] || look.isf[id];
+    if (!l || l.playing === false) continue;
+    c.t += dt * (Number(l.speed ?? 1) || 0);
+    c.frame += Math.round(dt * 60);
+  }
+}
+
+function handHeldClocksBack(p) {
+  if (!p || !p.clocks) return;
+  advanceHeldClocks(p);
+  for (const src of state.sources || []) {
+    const c = src && p.clocks[src.id];
+    if (!c) continue;
+    src.simTime = c.t;
+    if (src.kind === 'isf') src.frameIndex = c.frame;
   }
 }
 
@@ -40379,7 +40542,7 @@ function hasPendingPreviewEdits(force = false) {
   const p = state.program;
   if (!p._sig) p._sig = programLookSignature(p.snap);
   const val = programLookSignature(captureSceneSnapshot()) !== p._sig
-    || (p._srcSig !== undefined && JSON.stringify(captureSourceLooks()) !== p._srcSig);
+    || (!!p.srcLook && sourceLooksDiffer(p.srcLook, captureSourceLooks()));
   _programPendingCache = { t: now, val };
   return val;
 }
@@ -40395,6 +40558,11 @@ function holdProgram(opts = {}) {
   p._sig = programLookSignature(snap);
   p.srcLook = captureSourceLooks();
   p._srcSig = JSON.stringify(p.srcLook);
+  p.clocks = {};
+  const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  for (const src of state.sources || []) {
+    if (src && (src.kind === 'shader' || src.kind === 'isf')) p.clocks[src.id] = { t: Number(src.simTime) || 0, frame: src.frameIndex || 0, last: t0 };
+  }
   p.activeCueId = state.activeCueId || null;
   p.sinceMs = Date.now();
   _programPendingCache = { t: 0, val: false };
@@ -40410,9 +40578,11 @@ function releaseProgram(opts = {}) {
   const p = ensureProgramState();
   if (!p.held) return false;
   p.held = false;
+  handHeldClocksBack(p);
   p.snap = null;
   p.srcLook = null;
   p._srcSig = undefined;
+  p.clocks = null;
   p.scene = null;
   p._sig = '';
   _programPendingCache = { t: 0, val: false };
@@ -40429,9 +40599,11 @@ function takeProgram(fadeSec = null) {
   const from = p.snap;
   const dur = Math.max(0, fadeSec === null ? Number(p.takeFadeSec) || 0 : Number(fadeSec) || 0);
   p.held = false;
+  handHeldClocksBack(p);
   p.snap = null;
   p.srcLook = null;
   p._srcSig = undefined;
+  p.clocks = null;
   p.scene = null;
   p._sig = '';
   _programPendingCache = { t: 0, val: false };
@@ -40466,6 +40638,9 @@ function revertPreviewToProgram(opts = {}) {
   if (typeof applySelectiveSceneSnapshot === 'function') applySelectiveSceneSnapshot(snap, filter, false);
   else applySceneSnapshotImmediate(snap);
   applySourceLooks(p.srcLook);
+  handHeldClocksBack(p); // Preview resumes from where the stage is
+  if (p.clocks) { const t = typeof performance !== 'undefined' ? performance.now() : Date.now(); for (const c of Object.values(p.clocks)) c.last = t; }
+  if (typeof syncShaderStudioUI === 'function') syncShaderStudioUI(true);
   state.activeCueId = p.activeCueId;
   state.crossfade.active = false;
   state.crossfade.mix = 1.0;
@@ -40531,13 +40706,15 @@ function applyHeldProgramToSyncPayload(payload) {
   if (p.snap.mixbus) payload.mixbusState = p.snap.mixbus;
   const sh = p.snap.shaders || {};
   const look = p.srcLook || { shaders: {}, isf: {}, mirror: {} };
+  advanceHeldClocks(p);
+  const clocks = p.clocks || {};
   for (const id of Object.keys(payload.shaders || {})) {
-    if (look.shaders[id]) payload.shaders[id] = { ...payload.shaders[id], ...look.shaders[id] };
+    if (look.shaders[id]) payload.shaders[id] = { ...payload.shaders[id], ...look.shaders[id], ...(clocks[id] ? { simTime: clocks[id].t } : {}) };
     else if (sh[id]) payload.shaders[id] = { ...payload.shaders[id], ...sh[id] };
   }
   const isf = p.snap.isfParams || {};
   for (const id of Object.keys(payload.isfRuntimeStates || {})) {
-    if (look.isf[id]) payload.isfRuntimeStates[id] = { ...payload.isfRuntimeStates[id], isfValues: look.isf[id].isfValues, mirrorX: look.isf[id].mirrorX };
+    if (look.isf[id]) payload.isfRuntimeStates[id] = { ...payload.isfRuntimeStates[id], isfValues: look.isf[id].isfValues, mirrorX: look.isf[id].mirrorX, ...(clocks[id] ? { simTime: clocks[id].t, frameIndex: clocks[id].frame } : {}) };
     else if (isf[id] && isf[id].isfValues) payload.isfRuntimeStates[id] = { ...payload.isfRuntimeStates[id], isfValues: isf[id].isfValues };
   }
   for (const bucket of ['videos', 'textRuntimeStates']) {
@@ -41048,7 +41225,7 @@ function pickVenuePartFaceForProjector(part, hintNormal = null) {
 function getVenuePartFaceCoverage(part, face) {
   const g = getVenuePartFaceCorners(part, face);
   const out = [];
-  for (const R of getPrevizProjectorRefs().refs) {
+  for (const R of getAllProjectorRefs()) {
     const eye = R.opt?.eye || R.scr.posM;
     if (!Array.isArray(eye)) continue;
     const toProj = [eye[0] - g.center[0], eye[1] - g.center[1], eye[2] - g.center[2]];
@@ -41071,15 +41248,34 @@ function getVenuePartFaceCoverage(part, face) {
   return out.sort((a, b) => b.coverage - a.coverage || a.index - b.index);
 }
 
-// link.proj pins the face to one projector (multi-projector mapping); otherwise the projector
-// that lights it best.
+// Every enabled projector as a stage-UV reference — unlike the previz refs this ignores the
+// 3D view's projector solo (soloing or aligning P2 must not re-fit surfaces meant for P1).
+function getAllProjectorRefs() {
+  const mp = ensureMultiProjectorState();
+  const field = solveStagePlanOpticalField(mp);
+  const refs = [];
+  for (const scr of mp.screens || []) {
+    if (!scr || scr.enabled === false) continue;
+    const opt = field?.opticsByIndex?.get(scr.index);
+    if (opt) refs.push({ scr, opt, crop: getEffectiveProjectorCrop(scr, mp) });
+  }
+  return refs;
+}
+
+// link.proj pins the face to one projector (multi-projector mapping): if that projector is
+// gone or switched off, the surface keeps its last geometry (null) instead of jumping to
+// another lens. Without link.proj: the projector that lights it best.
 function computeVenuePartFaceStagePoints(link) {
   const part = getVenuePartById(link.id);
   if (!part || part.enabled === false) return null;
   const g = getVenuePartFaceCorners(part, link.face || '+z');
   let R = null;
-  if (link.proj) R = getPrevizProjectorRefs().refs.find(r => r.scr.index === Number(link.proj)) || null;
-  if (!R) R = getVenuePartFaceCoverage(part, link.face || '+z')[0]?.R || null;
+  if (link.proj) {
+    R = getAllProjectorRefs().find(r => r.scr.index === Number(link.proj)) || null;
+    if (!R) return null;
+  } else {
+    R = getVenuePartFaceCoverage(part, link.face || '+z')[0]?.R || null;
+  }
   if (!R) return null;
   const pts = g.corners.map(c => worldToStageUvViaRef(c, R));
   return pts.every(Boolean) ? { type: 'quad', points: pts, ref: R.scr.index } : null;
@@ -41091,12 +41287,16 @@ function mapMediaOntoVenuePart(id, face = null) {
   const f = face || pickVenuePartFaceForProjector(part, state.venueSel?.normal || null);
   const faceNames = { '+z': 'front', '-z': 'back', '+x': 'right', '-x': 'left', '+y': 'top', '-y': 'bottom' };
   const faceName = faceNames[f] || f;
-  const existing = (state.surfaces || []).find(s => s.linkObject && s.linkObject.kind === 'part' && s.linkObject.id === id && s.linkObject.face === f);
-  if (existing) {
-    if (typeof selectSurface === 'function') selectSurface(existing.id);
-    return existing;
-  }
+  const existing = (state.surfaces || []).filter(s => s.linkObject && s.linkObject.kind === 'part' && s.linkObject.id === id && s.linkObject.face === f);
   const cov = getVenuePartFaceCoverage(part, f);
+  const mp0 = state.multiProjector || {};
+  // Already mapped: with multi-projector output, add surfaces only for projectors that light the
+  // face but don't have one yet (e.g. output switched on after mapping, or one was deleted).
+  const missing = mp0.enabled ? cov.filter(c => !existing.some(s => Number(s.linkObject.proj) === c.index)) : [];
+  if (existing.length && !missing.length) {
+    if (typeof selectSurface === 'function') selectSurface(existing[0].id);
+    return existing[0];
+  }
   if (!cov.length) {
     if (typeof showToast === 'function') showToast(`No projector reaches the ${faceName} face of ${part.name} — aim one at it in BUILD first`);
     return null;
@@ -41105,15 +41305,18 @@ function mapMediaOntoVenuePart(id, face = null) {
   // With multi-projector output each projector shows its own part of the stage, so every
   // projector that lights the face gets its own exactly fitted surface. Without it all
   // projectors show the same stage, so one surface through the best projector.
-  const useProjs = mp.enabled ? cov : cov.slice(0, 1);
+  const useProjs = existing.length ? missing : (mp.enabled ? cov : cov.slice(0, 1));
   if (typeof pushUndoCheckpoint === 'function') pushUndoCheckpoint('Map onto face');
   const made = [];
+  for (const s0 of existing) {
+    if (s0.linkObject.proj && !/ · P\d+$/.test(s0.name || '')) s0.name = `${s0.name} · P${s0.linkObject.proj}`;
+  }
   for (const c of useProjs) {
     const link = { kind: 'part', id, face: f, proj: c.index };
     const g = computeVenuePartFaceStagePoints(link);
     if (!g) continue;
     const surf = createSurface('quad', {
-      name: `◼ ${part.name} · ${faceName}${useProjs.length > 1 ? ` · P${c.index}` : ''}`,
+      name: `◼ ${part.name} · ${faceName}${useProjs.length + existing.length > 1 ? ` · P${c.index}` : ''}`,
       sourceId: state.activeSourceId || 'src_shards',
       points: g.points,
       linkObject: link
@@ -41635,11 +41838,15 @@ function tryBeginAlignPinDrag(mx, my, el) {
   const up = () => {
     window.removeEventListener('pointermove', move, true);
     window.removeEventListener('pointerup', up, true);
+    window.removeEventListener('pointercancel', up, true);
+    window.removeEventListener('blur', up, true);
     resolveProjectorAlign();
     if (typeof renderRigWorkspaceCanvas === 'function' && isBuildRoom()) renderRigWorkspaceCanvas();
   };
   window.addEventListener('pointermove', move, true);
   window.addEventListener('pointerup', up, true);
+  window.addEventListener('pointercancel', up, true);
+  window.addEventListener('blur', up, true);
   syncProjectorAlignUI();
   return true;
 }
@@ -41818,7 +42025,7 @@ function collectShowCheckItems() {
   }
   const capFps = typeof getBrowserFrameRateCap === 'function' ? getBrowserFrameRateCap() : 0;
   if (capFps) {
-    add(isAnyOutputWindowOpen() ? 'warn' : 'info', 'fpscap', `The browser limits this page to ${capFps} fps — usually battery saving. Plug in the power, or turn off Energy Saver in Chrome Settings → Performance.`, 'How?',
+    add(isAnyOutputWindowOpen() ? 'warn' : 'info', 'fpscap', `Frame rate is held at ${capFps} fps (lower quality wouldn't help) — usually battery saving. Plug in, or turn off Energy Saver in Chrome Settings → Performance.`, 'How?',
       () => { if (typeof showToast === 'function') showToast('Chrome: ⋮ → Settings → Performance → Energy Saver → off (or "only when unplugged"), and keep the laptop on mains power for shows.'); });
   }
   if (!isAnyOutputWindowOpen()) {
@@ -56834,7 +57041,7 @@ function frameLoop(now) {
       const capFps = typeof getBrowserFrameRateCap === 'function' ? getBrowserFrameRateCap() : 0;
       fpsBadgeEl.dataset.capped = capFps ? '1' : '';
       fpsBadgeEl.title = capFps
-        ? `The browser is limiting this page to ${capFps} fps — usually battery saving (Chrome Energy Saver switches on at 20% battery). Plug in the power, or turn Energy Saver off in Chrome Settings → Performance. Quality stays at 100%.`
+        ? `Frames arrive at a steady ${capFps} fps and lowering quality doesn't speed them up, so quality stays at 100%. Most often this is battery saving (Chrome Energy Saver switches on at 20% battery): plug in, or turn Energy Saver off in Chrome Settings → Performance. A ${capFps} Hz display or a very heavy scene can do the same.`
         : `Frame rate · render quality ${q.toUpperCase()} (${pct}% internal resolution for generators & 3D previz). Click to cycle Auto → Full → Fast.`;
       fpsBadgeEl.dataset.res = pct < 100 ? `${pct}%` : '';
     }
@@ -56934,6 +57141,7 @@ function bootWebMapper() {
 // The loading veil (body.html) covers the half-loaded page; lift it once the app is live —
 // even if boot throws, so a problem is visible instead of an endless "Loading…".
 function hideBootVeil() {
+  if (typeof window !== 'undefined') window.__ccBooted = true;
   const veil = typeof document !== 'undefined' ? document.getElementById('boot-veil') : null;
   if (!veil) return;
   veil.classList.add('done');

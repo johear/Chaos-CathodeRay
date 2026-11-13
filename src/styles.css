@@ -3977,7 +3977,7 @@
     .about-legal { padding: 8px 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.04); }
     .about-links a.btn { text-decoration: none; }
     a.tester-guide-link { text-decoration: none; }
-    #fps-badge[data-capped="1"]::after { content: "POWER CAP"; color: var(--warm, #ffcb7d); }
+    #fps-badge[data-capped="1"]::after { content: "FPS CAP"; color: var(--warm, #ffcb7d); }
     /* Loading veil: visible from first paint until boot finishes */
     #boot-veil { position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center; background: #070b13; color: #e6edf7; transition: opacity 0.25s ease; }
     #boot-veil.done { opacity: 0; pointer-events: none; }
@@ -3990,3 +3990,6 @@
     @keyframes boot-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
     @media (prefers-reduced-motion: reduce) { #boot-veil .boot-bar span { animation: none; width: 100%; opacity: 0.5; } }
     .lines-dim-input { position: fixed; z-index: 90; width: 88px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--warm, #ffcb7d); background: #0a0e16; color: #ffcb7d; font: 700 11px ui-monospace, SFMono-Regular, Menlo, monospace; text-align: center; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6); }
+    #boot-veil.bare { background: #000; }
+    #boot-veil.bare .boot-card { display: none; }
+    #boot-veil.stuck .boot-bar { display: none; }

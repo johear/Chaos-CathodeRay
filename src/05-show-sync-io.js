@@ -1310,6 +1310,7 @@ function serializeSurfaceSyncArray(list) {
     type: s.type,
     accent: s.accent,
     groupId: s.groupId || null,
+    outputProj: s.linkObject && s.linkObject.proj ? Number(s.linkObject.proj) : 0,
     visible: s.visible,
     solo: s.solo,
     showCalGrid: !state.showLock && !!s.showCalGrid,

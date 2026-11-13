@@ -7,6 +7,23 @@
       <noscript><div class="boot-sub">Chaos CathodeRay needs JavaScript and a recent desktop Chrome or Edge.</div></noscript>
     </div>
   </div>
+  <script>
+    // Before the app script arrives: projector windows load on plain black; if starting fails
+    // (or takes very long) the loading screen says so instead of spinning forever.
+    (function () {
+      var veil = document.getElementById('boot-veil');
+      if (!veil) return;
+      if (/[?&]role=/.test(location.search)) veil.classList.add('bare');
+      var say = function (msg) {
+        var sub = veil.querySelector('.boot-sub');
+        if (sub && !window.__ccBooted) { sub.textContent = msg; veil.classList.add('stuck'); }
+      };
+      window.addEventListener('error', function () {
+        say('Something went wrong while starting. Reload the page; if it happens again, use a recent desktop Chrome or Edge and tell us at talk.to.chaos.productions@gmail.com.');
+      });
+      setTimeout(function () { say('Still loading… on a slow connection this can take a while. If nothing changes, reload the page.'); }, 25000);
+    })();
+  </script>
   <div id="projector-banner">
     CHAOS CATHODERAY PROJECTOR — Click Here or Press <strong>F</strong> for Fullscreen • Connected to Studio Controller
   </div>

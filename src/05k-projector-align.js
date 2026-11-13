@@ -392,11 +392,15 @@ function tryBeginAlignPinDrag(mx, my, el) {
   const up = () => {
     window.removeEventListener('pointermove', move, true);
     window.removeEventListener('pointerup', up, true);
+    window.removeEventListener('pointercancel', up, true);
+    window.removeEventListener('blur', up, true);
     resolveProjectorAlign();
     if (typeof renderRigWorkspaceCanvas === 'function' && isBuildRoom()) renderRigWorkspaceCanvas();
   };
   window.addEventListener('pointermove', move, true);
   window.addEventListener('pointerup', up, true);
+  window.addEventListener('pointercancel', up, true);
+  window.addEventListener('blur', up, true);
   syncProjectorAlignUI();
   return true;
 }

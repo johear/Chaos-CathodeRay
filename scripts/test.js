@@ -2204,10 +2204,12 @@ const vmScript = `
   {
     // Governor: slow frames step resolution down, sustained fast frames climb back.
     state.renderQuality = 'auto';
-    perfGovernor.scale = 1; perfGovernor.emaMs = 16.7; perfGovernor.lastAdjust = 0; perfGovernor.ceiling = 1; perfGovernor.ceilingUntil = 0;
+    Object.assign(perfGovernor, { scale: 1, emaMs: 16.7, jitter: 0, lastAdjust: 0, ceiling: 1, ceilingUntil: 0, floorSince: 0, probe: null, probeWaitMs: 30000, probeAfter: 0, capped: false, capMs: 0 });
     let tNow = 10000;
-    for (let i = 0; i < 400; i++) { tNow += 33; updatePerfGovernor(33, tNow); }
-    assert.strictEqual(perfGovernor.scale, 0.5, 'Sustained 30 fps drops internal resolution to the 0.5 floor');
+    // A GPU bottleneck: frames get faster as the internal resolution drops (34 ms at 1.0, 23 ms at 0.5).
+    for (let i = 0; i < 400; i++) { const d = 12 + 22 * perfGovernor.scale; tNow += d; updatePerfGovernor(d, tNow); }
+    assert.strictEqual(perfGovernor.scale, 0.5, 'A slow GPU drops internal resolution to the 0.5 floor');
+    assert(!perfGovernor.capped, 'A real GPU bottleneck is not mistaken for a browser frame cap');
     for (let i = 0; i < 2000; i++) { tNow += 16.7; updatePerfGovernor(16.7, tNow); }
     assert.strictEqual(perfGovernor.scale, 1, 'Sustained 60 fps climbs back to full resolution');
     state.renderQuality = 'fast';
@@ -2505,43 +2507,79 @@ const vmScript = `
     const payload = JSON.parse(buildBetaReportPayload(rep));
     assert(payload.app === 'chaos-cathoderay' && payload.id === getBetaReportId() && payload.report === rep && payload.website === '', 'Server payload matches chaos-report.php');
     assert(mail.url.startsWith('mailto:' + APP_FEEDBACK_EMAIL + '?subject=' + encodeURIComponent(APP_REPORT_SUBJECT + ' ' + getBetaReportId())) && decodeURIComponent(mail.url).includes('clicked GO') && !mail.truncated, 'Email fallback uses the same subject and report');
-    // Blind holds every source's look (generator settings, ISF parameters, mirroring), not just
-    // what the cue snapshot captured; time keeps running; Revert restores; TAKE releases.
+    // Blind holds every source's look AND its clock: the stage keeps running at the held speed even
+    // when the operator pauses or speeds up the generator in Preview; TAKE hands the clock back.
     state.program = undefined; ensureProgramState();
     const gen = state.sources.find(x => x.kind === 'shader');
-    const speed0 = gen.speed;
+    const speed0 = gen.speed || 1; gen.speed = speed0; gen.playing = true;
+    const t0 = gen.simTime || 0;
     holdProgram({ silent: true });
-    gen.speed = speed0 + 0.77; gen.simTime = (gen.simTime || 0) + 5;
-    assert(hasPendingPreviewEdits(true), 'A generator setting change counts as a pending Preview edit');
-    const plHeld = applyHeldProgramToSyncPayload({ shaders: { [gen.id]: { speed: gen.speed, simTime: gen.simTime } }, isfRuntimeStates: {}, videos: {}, textRuntimeStates: {} });
-    assert(plHeld.shaders[gen.id].speed === speed0 && plHeld.shaders[gen.id].simTime === gen.simTime, 'Projectors keep the held generator setting while time keeps running');
+    gen.speed = speed0 + 0.77; gen.playing = false; gen.simTime = t0 + 50;
+    assert(hasPendingPreviewEdits(true), 'A generator speed/pause change counts as a pending Preview edit');
+    state.program.clocks[gen.id].last -= 2000; // two seconds pass
+    const plHeld = applyHeldProgramToSyncPayload({ shaders: { [gen.id]: { speed: gen.speed, playing: false, simTime: gen.simTime } }, isfRuntimeStates: {}, videos: {}, textRuntimeStates: {} });
+    assert(plHeld.shaders[gen.id].speed === speed0 && plHeld.shaders[gen.id].playing === true, 'Projectors keep the held speed and play state');
+    assert(Math.abs(plHeld.shaders[gen.id].simTime - (t0 + 2 * speed0)) < 0.05, 'Stage clock runs on at the held speed, ignoring the paused/jumped Preview clock');
     revertPreviewToProgram();
-    assert(gen.speed === speed0 && !hasPendingPreviewEdits(true), 'Revert restores generator settings too');
+    assert(gen.speed === speed0 && gen.playing === true && Math.abs(gen.simTime - (t0 + 2 * speed0)) < 0.05 && !hasPendingPreviewEdits(true), 'Revert restores settings and resumes from the stage clock');
+    const stageT = state.program.clocks[gen.id].t;
     gen.speed = speed0 + 0.2; takeProgram(0);
-    assert(!isProgramHeld() && gen.speed === speed0 + 0.2, 'TAKE releases the hold with the edited setting');
+    assert(!isProgramHeld() && gen.speed === speed0 + 0.2 && gen.simTime >= stageT - 1e-9, 'TAKE releases with the edited setting and continues from the stage clock (no jump)');
     state.crossfade.active = false; state.crossfade.fromScene = null; gen.speed = speed0;
+    // A modulated parameter (LFO/audio) changing every frame is not a pending edit.
+    holdProgram({ silent: true });
+    state.modulators = [...(state.modulators || []), { id: 'mod_test', enabled: true, targetKey: 'source:' + gen.id + ':scale' }];
+    gen.scale = (gen.scale || 1) + 0.33;
+    assert(!hasPendingPreviewEdits(true), 'Modulated source parameters do not count as pending edits');
+    state.modulators = state.modulators.filter(m => m.id !== 'mod_test');
+    releaseProgram({ silent: true });
 
-    // Set parts: a face lit by several projectors gets one exact surface per projector with
-    // multi-projector output on, one through the best projector with it off, none if unlit.
+    // Set parts lit by two projectors (P1 left, P2 right, both aimed at the facade).
     applyWorkflowContext('architectural');
     const facade = state.venueParts.find(pp => pp.kind === 'building');
-    const covF = getVenuePartFaceCoverage(facade, '+z');
-    assert(covF.length >= 1, 'The facade front is lit by at least one projector');
     const mpF = ensureMultiProjectorState();
+    while (mpF.screens.length < 2) mpF.screens.push(createProjectorScreenSlice(mpF.screens.length + 1));
+    mpF.screens.forEach(sc => { sc.enabled = true; });
+    aimProjectorAt(mpF.screens[0], [-3, 3, 11], [0, 5, -12]);
+    aimProjectorAt(mpF.screens[1], [3, 3, 11], [0, 5, -12]);
+    markStagePlanDirty();
+    const covF = getVenuePartFaceCoverage(facade, '+z');
+    assert(covF.length === 2, 'Both projectors light the facade front');
     const nSurf0 = state.surfaces.length;
-    mpF.enabled = true;
-    mapMediaOntoVenuePart(facade.id, '+z');
-    const madeF = state.surfaces.filter(sf => sf.linkObject && sf.linkObject.kind === 'part' && sf.linkObject.id === facade.id);
-    assert(madeF.length === covF.length && new Set(madeF.map(sf => sf.linkObject.proj)).size === covF.length, 'Multi-projector output: one surface per projector that lights the face');
-    if (madeF.length > 1) assert(JSON.stringify(madeF[0].points) !== JSON.stringify(madeF[1].points), 'Each projector gets its own stage geometry for the face');
-    assert(madeF.every(sf => sf.linkObject.face === '+z'), 'The mapped face is kept on the surface link');
-    state.surfaces = state.surfaces.filter(sf => !madeF.includes(sf));
-    assert(getVenuePartFaceCoverage(facade, '-z').length === 0 && mapMediaOntoVenuePart(facade.id, '-z') === null, 'The back face (away from the projectors) is not mapped');
+    const facadeSurfs = () => state.surfaces.filter(sf => sf.linkObject && sf.linkObject.kind === 'part' && sf.linkObject.id === facade.id);
+    // Mapped with multi-projector output off: one surface through the best projector …
     mpF.enabled = false;
     mapMediaOntoVenuePart(facade.id, '+z');
-    assert(state.surfaces.filter(sf => sf.linkObject && sf.linkObject.id === facade.id).length === 1, 'Single output: one surface through the best projector');
-    state.surfaces = state.surfaces.filter(sf => !(sf.linkObject && sf.linkObject.id === facade.id));
+    assert(facadeSurfs().length === 1, 'Single output: one surface through the best projector');
+    // … then output switched on: Map onto again adds the missing projector's surface.
+    mpF.enabled = true;
+    mapMediaOntoVenuePart(facade.id, '+z');
+    const madeF = facadeSurfs();
+    assert(madeF.length === 2 && new Set(madeF.map(sf => sf.linkObject.proj)).size === 2, 'Turning multi-projector output on and mapping again adds the missing surface');
+    assert(JSON.stringify(madeF[0].points) !== JSON.stringify(madeF[1].points), 'Each projector gets its own stage geometry for the face');
+    assert(madeF.every(sf => sf.linkObject.face === '+z' && / · P\\d$/.test(sf.name)), 'Face kept on the link; names say which projector');
+    // Soloing / aligning P2 must not re-fit the P1 surface through P2's lens.
+    const p1Surf = madeF.find(sf => sf.linkObject.proj === mpF.screens[0].index);
+    const p1Pts = JSON.stringify(p1Surf.points);
+    ensureStagePlanState(mpF).previzSolo = mpF.screens[1].index;
+    p1Surf._linkKey = ''; applyLinkedGeometry(p1Surf);
+    assert.strictEqual(JSON.stringify(p1Surf.points), p1Pts, 'P1 surface keeps its geometry while P2 is soloed');
+    ensureStagePlanState(mpF).previzSolo = 0;
+    mpF.screens[0].enabled = false;
+    assert.strictEqual(computeVenuePartFaceStagePoints(p1Surf.linkObject), null, 'A pinned projector that is switched off never falls back to another lens');
+    mpF.screens[0].enabled = true;
+    // Each projector output draws only its own fitted surface; the full stage view shows both.
+    state.outputFeedTab = 'p' + mpF.screens[0].index;
+    assert(isSurfaceForCurrentOutput(p1Surf) && !isSurfaceForCurrentOutput(madeF.find(sf => sf !== p1Surf)), 'P1 preview draws only the P1 surface');
+    state.outputFeedTab = 'stage';
+    assert(madeF.every(isSurfaceForCurrentOutput), 'The full stage view draws both');
+    assert(getVenuePartFaceCoverage(facade, '-z').length === 0 && mapMediaOntoVenuePart(facade.id, '-z') === null, 'The back face (away from the projectors) is not mapped');
+    state.surfaces = state.surfaces.filter(sf => !madeF.includes(sf));
+    mpF.enabled = false;
     assert(state.surfaces.length === nSurf0, 'Test surfaces cleaned up');
+    // Calibration crosshair: belongs to its projector's output, but is never switched off just
+    // because another projector is being drawn or previewed.
+    assert(isCalibCrosshairForSlice({ screen: 1 }, { index: 1 }) && !isCalibCrosshairForSlice({ screen: 1 }, { index: 2 }) && isCalibCrosshairForSlice({ screen: 1 }, null) && isCalibCrosshairForSlice({ screen: 0 }, { index: 2 }), 'Crosshair shows only on its own projector output');
 
     // Lines look: typed dimensions edit the real object; off-axis parts aren't sized from a view.
     const blkD = addVenuePart('block', { posM: [4, 0, 4], sizeM: [2, 1, 3], yawDeg: 0 });
@@ -2558,6 +2596,13 @@ const vmScript = `
     const aimD = [...scrD.aimM];
     applyLinesDimensionEdit({ target: 'projector', id: scrD.index, floor: 0 }, 4.2);
     assert(Math.abs(scrD.posM[1] - 4.2) < 1e-9 && JSON.stringify(scrD.aimM) === JSON.stringify(aimD), 'Projector height typed; it keeps aiming at the same point');
+    state.room = 'live';
+    assert(!canEditLinesDimensions(), 'Sizes cannot be typed in LIVE');
+    state.room = 'build'; state.showLock = true;
+    assert(!canEditLinesDimensions(), 'Sizes cannot be typed under Show Lock');
+    state.showLock = false;
+    assert(canEditLinesDimensions(), 'Sizes can be typed in BUILD');
+    assert(applyLinesDimensionEdit({ target: 'part', id: 'nope', field: 'size', idx: 0 }, 2) === false, 'Editing a missing object does nothing (and adds no undo step)');
     removeVenuePart(blkD.id);
 
     // Calibration: POV crosshair pixel mapping round-trips; crosshair belongs to one projector.
@@ -2568,12 +2613,23 @@ const vmScript = `
 
     // Perf governor: a browser frame cap (steady 33.3 ms whatever the quality) is detected and
     // quality goes back to 100 %; a real GPU bottleneck (frames get faster at lower scale) is not a cap.
-    const resetGov = () => Object.assign(perfGovernor, { emaMs: 16.7, jitter: 0, scale: 1, ceiling: 1, ceilingUntil: 0, goodSince: 0, lastAdjust: 0, emaAtStart: 0, floorSince: 0, capped: false, capMs: 0 });
+    const resetGov = () => Object.assign(perfGovernor, { emaMs: 16.7, jitter: 0, scale: 1, ceiling: 1, ceilingUntil: 0, goodSince: 0, lastAdjust: 0, floorSince: 0, probe: null, probeWaitMs: 30000, probeAfter: 0, capped: false, capMs: 0 });
     state.renderQuality = 'auto';
     resetGov();
     let tSim = 0;
+    tSim = 50000; // realistic: running at 60 fps for a while, then Energy Saver caps the page to 30
+    for (let k = 0; k < 600; k++) { tSim += 16.67; updatePerfGovernor(16.67, tSim); }
+    for (let k = 0; k < 900; k++) { tSim += 33.33; updatePerfGovernor(33.33, tSim); }
+    assert(perfGovernor.capped && perfGovernor.scale === 1 && getBrowserFrameRateCap() === 30, '60 → 30 fps cap mid-session is detected; quality restored to 100%');
+    resetGov(); tSim = 90000; // booting already capped, with slow first frames
+    for (let k = 0; k < 5; k++) { tSim += 120; updatePerfGovernor(120, tSim); }
+    for (let k = 0; k < 900; k++) { tSim += 33.33; updatePerfGovernor(33.33, tSim); }
+    assert(perfGovernor.capped && perfGovernor.scale === 1, 'Booting already capped (slow first frames) is detected too');
+    state.renderQuality = 'full';
+    for (let k = 0; k < 200; k++) { tSim += 16.67; updatePerfGovernor(16.67, tSim); }
+    assert(!perfGovernor.capped, 'Plugging in clears the cap even in Full quality');
+    state.renderQuality = 'auto';
     for (let k = 0; k < 600; k++) { tSim += 33.33; updatePerfGovernor(33.33, tSim); }
-    assert(perfGovernor.capped && perfGovernor.scale === 1 && getBrowserFrameRateCap() === 30, 'Steady 30 fps that lower quality cannot improve = browser cap; quality restored to 100%');
     for (let k = 0; k < 200; k++) { tSim += 16.67; updatePerfGovernor(16.67, tSim); }
     assert(!perfGovernor.capped && getBrowserFrameRateCap() === 0, 'Cap lifted when frames speed up again (plugged in)');
     resetGov(); tSim = 0;

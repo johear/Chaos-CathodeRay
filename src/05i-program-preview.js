@@ -35,10 +35,25 @@ function bumpSceneSyncRev() {
 }
 
 // Look-only comparison signature (spots / DMX / modulators are live layers).
+// Signature of the stage look for pending-edit detection. Source parameters are compared
+// separately (sourceLooksDiffer); surface/mask properties driven by a modulator are left out,
+// because they change every frame without anyone editing them.
 function programLookSignature(snap) {
   if (!snap) return '';
   try {
-    return JSON.stringify([snap.surfaces, snap.groups, snap.masks, snap.masterFxChain, snap.mixbus, snap.shaders, snap.isfParams, snap.textParams]);
+    const mod = new Set();
+    for (const m of state.modulators || []) {
+      if (!m || m.enabled === false || !m.targetKey) continue;
+      const parts = String(m.targetKey).split(':');
+      if (parts[0] === 'surface' || parts[0] === 'mask') mod.add(`${parts[0]}:${parts[1]}:${parts[2]}`);
+    }
+    const strip = (list, scope) => (list || []).map(o => {
+      if (!o || !mod.size) return o;
+      const c = { ...o };
+      for (const k of Object.keys(c)) if (mod.has(`${scope}:${o.id}:${k}`)) delete c[k];
+      return c;
+    });
+    return JSON.stringify([strip(snap.surfaces, 'surface'), snap.groups, strip(snap.masks, 'mask'), snap.masterFxChain, snap.mixbus, snap.textParams]);
   } catch (_) {
     return '';
   }
@@ -59,7 +74,7 @@ function captureSourceLooks() {
       for (const k of HELD_SHADER_LOOK_KEYS) o[k] = src[k];
       out.shaders[src.id] = o;
     } else if (src.kind === 'isf') {
-      out.isf[src.id] = { isfValues: JSON.parse(JSON.stringify(src.isfValues || {})), mirrorX: !!src.mirrorX };
+      out.isf[src.id] = { isfValues: JSON.parse(JSON.stringify(src.isfValues || {})), mirrorX: !!src.mirrorX, speed: src.speed ?? 1.0, playing: src.playing !== false };
     } else if (src.kind === 'video' || src.kind === 'text') {
       out.mirror[src.id] = !!src.mirrorX;
     }
@@ -75,7 +90,72 @@ function applySourceLooks(looks) {
     else if (src.kind === 'isf' && looks.isf[src.id]) {
       src.isfValues = JSON.parse(JSON.stringify(looks.isf[src.id].isfValues || {}));
       src.mirrorX = looks.isf[src.id].mirrorX;
+      if (looks.isf[src.id].speed !== undefined) src.speed = looks.isf[src.id].speed;
+      if (looks.isf[src.id].playing !== undefined) src.playing = looks.isf[src.id].playing;
     } else if (looks.mirror[src.id] !== undefined) src.mirrorX = looks.mirror[src.id];
+  }
+}
+
+// Source parameters driven by an active modulator (LFO, audio, MIDI…) change every frame:
+// they are not "edits", so pending detection ignores them.
+function getModulatedSourceKeys() {
+  const keys = new Set();
+  for (const mod of state.modulators || []) {
+    if (!mod || mod.enabled === false || !mod.targetKey) continue;
+    const parts = String(mod.targetKey).split(':');
+    if (parts[0] !== 'source') continue;
+    keys.add(parts[2] === 'isf' ? `${parts[1]}:isf.${parts[3]}` : `${parts[1]}:${parts[2]}`);
+  }
+  return keys;
+}
+
+// True when a held source look differs from now (only sources that existed when the hold began).
+function sourceLooksDiffer(held, now) {
+  if (!held || !now) return false;
+  const mod = getModulatedSourceKeys();
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  for (const [id, h] of Object.entries(held.shaders)) {
+    const n = now.shaders[id];
+    if (!n) continue;
+    for (const k of Object.keys(h)) if (!mod.has(`${id}:${k}`) && !same(h[k], n[k])) return true;
+  }
+  for (const [id, h] of Object.entries(held.isf)) {
+    const n = now.isf[id];
+    if (!n) continue;
+    for (const k of ['mirrorX', 'speed', 'playing']) if (!mod.has(`${id}:${k}`) && !same(h[k], n[k])) return true;
+    const hv = h.isfValues || {}, nv = n.isfValues || {};
+    for (const k of new Set([...Object.keys(hv), ...Object.keys(nv)])) if (!mod.has(`${id}:isf.${k}`) && !same(hv[k], nv[k])) return true;
+  }
+  for (const [id, m] of Object.entries(held.mirror)) {
+    if (now.mirror[id] !== undefined && now.mirror[id] !== m && !mod.has(`${id}:mirrorX`)) return true;
+  }
+  return false;
+}
+
+// While Blind, each generator on stage runs on its own held clock (held speed and play state);
+// the operator's clock may be paused or sped up in Preview. Handed back at TAKE / release.
+function advanceHeldClocks(p) {
+  if (!p || !p.clocks) return;
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const look = p.srcLook || { shaders: {}, isf: {} };
+  for (const [id, c] of Object.entries(p.clocks)) {
+    const dt = Math.min(5, Math.max(0, (now - c.last) / 1000));
+    c.last = now;
+    const l = look.shaders[id] || look.isf[id];
+    if (!l || l.playing === false) continue;
+    c.t += dt * (Number(l.speed ?? 1) || 0);
+    c.frame += Math.round(dt * 60);
+  }
+}
+
+function handHeldClocksBack(p) {
+  if (!p || !p.clocks) return;
+  advanceHeldClocks(p);
+  for (const src of state.sources || []) {
+    const c = src && p.clocks[src.id];
+    if (!c) continue;
+    src.simTime = c.t;
+    if (src.kind === 'isf') src.frameIndex = c.frame;
   }
 }
 
@@ -86,7 +166,7 @@ function hasPendingPreviewEdits(force = false) {
   const p = state.program;
   if (!p._sig) p._sig = programLookSignature(p.snap);
   const val = programLookSignature(captureSceneSnapshot()) !== p._sig
-    || (p._srcSig !== undefined && JSON.stringify(captureSourceLooks()) !== p._srcSig);
+    || (!!p.srcLook && sourceLooksDiffer(p.srcLook, captureSourceLooks()));
   _programPendingCache = { t: now, val };
   return val;
 }
@@ -102,6 +182,11 @@ function holdProgram(opts = {}) {
   p._sig = programLookSignature(snap);
   p.srcLook = captureSourceLooks();
   p._srcSig = JSON.stringify(p.srcLook);
+  p.clocks = {};
+  const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  for (const src of state.sources || []) {
+    if (src && (src.kind === 'shader' || src.kind === 'isf')) p.clocks[src.id] = { t: Number(src.simTime) || 0, frame: src.frameIndex || 0, last: t0 };
+  }
   p.activeCueId = state.activeCueId || null;
   p.sinceMs = Date.now();
   _programPendingCache = { t: 0, val: false };
@@ -117,9 +202,11 @@ function releaseProgram(opts = {}) {
   const p = ensureProgramState();
   if (!p.held) return false;
   p.held = false;
+  handHeldClocksBack(p);
   p.snap = null;
   p.srcLook = null;
   p._srcSig = undefined;
+  p.clocks = null;
   p.scene = null;
   p._sig = '';
   _programPendingCache = { t: 0, val: false };
@@ -136,9 +223,11 @@ function takeProgram(fadeSec = null) {
   const from = p.snap;
   const dur = Math.max(0, fadeSec === null ? Number(p.takeFadeSec) || 0 : Number(fadeSec) || 0);
   p.held = false;
+  handHeldClocksBack(p);
   p.snap = null;
   p.srcLook = null;
   p._srcSig = undefined;
+  p.clocks = null;
   p.scene = null;
   p._sig = '';
   _programPendingCache = { t: 0, val: false };
@@ -173,6 +262,9 @@ function revertPreviewToProgram(opts = {}) {
   if (typeof applySelectiveSceneSnapshot === 'function') applySelectiveSceneSnapshot(snap, filter, false);
   else applySceneSnapshotImmediate(snap);
   applySourceLooks(p.srcLook);
+  handHeldClocksBack(p); // Preview resumes from where the stage is
+  if (p.clocks) { const t = typeof performance !== 'undefined' ? performance.now() : Date.now(); for (const c of Object.values(p.clocks)) c.last = t; }
+  if (typeof syncShaderStudioUI === 'function') syncShaderStudioUI(true);
   state.activeCueId = p.activeCueId;
   state.crossfade.active = false;
   state.crossfade.mix = 1.0;
@@ -238,13 +330,15 @@ function applyHeldProgramToSyncPayload(payload) {
   if (p.snap.mixbus) payload.mixbusState = p.snap.mixbus;
   const sh = p.snap.shaders || {};
   const look = p.srcLook || { shaders: {}, isf: {}, mirror: {} };
+  advanceHeldClocks(p);
+  const clocks = p.clocks || {};
   for (const id of Object.keys(payload.shaders || {})) {
-    if (look.shaders[id]) payload.shaders[id] = { ...payload.shaders[id], ...look.shaders[id] };
+    if (look.shaders[id]) payload.shaders[id] = { ...payload.shaders[id], ...look.shaders[id], ...(clocks[id] ? { simTime: clocks[id].t } : {}) };
     else if (sh[id]) payload.shaders[id] = { ...payload.shaders[id], ...sh[id] };
   }
   const isf = p.snap.isfParams || {};
   for (const id of Object.keys(payload.isfRuntimeStates || {})) {
-    if (look.isf[id]) payload.isfRuntimeStates[id] = { ...payload.isfRuntimeStates[id], isfValues: look.isf[id].isfValues, mirrorX: look.isf[id].mirrorX };
+    if (look.isf[id]) payload.isfRuntimeStates[id] = { ...payload.isfRuntimeStates[id], isfValues: look.isf[id].isfValues, mirrorX: look.isf[id].mirrorX, ...(clocks[id] ? { simTime: clocks[id].t, frameIndex: clocks[id].frame } : {}) };
     else if (isf[id] && isf[id].isfValues) payload.isfRuntimeStates[id] = { ...payload.isfRuntimeStates[id], isfValues: isf[id].isfValues };
   }
   for (const bucket of ['videos', 'textRuntimeStates']) {

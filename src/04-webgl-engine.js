@@ -47,39 +47,66 @@ const glCaps = {
 // ----------------------------------------------------------------------------
 const perfGovernor = {
   emaMs: 16.7,
-  jitter: 0,           // average |frame interval − ema|: tiny when the browser paces frames to a fixed rate
+  jitter: 0,           // average |frame interval − ema|: small when frames arrive at a steady rate
   scale: 1.0,          // 0.5 .. 1.0, applied to generator sources & previz
   ceiling: 1.0,        // last scale that proved too slow is avoided for a while
   ceilingUntil: 0,
   goodSince: 0,
   lastAdjust: 0,
-  emaAtStart: 0,       // frame interval when the governor started lowering quality
-  floorSince: 0,       // how long we've sat at the lowest scale without it helping
-  capped: false,       // the browser itself limits the frame rate (e.g. battery saving → 30 fps)
+  floorSince: 0,       // when we settled at the lowest scale while still slow
+  probe: null,         // { since, floorEma } while testing whether full quality is any slower
+  probeWaitMs: 30000,  // back-off between probes when the GPU really is the bottleneck
+  probeAfter: 0,
+  capped: false,       // the browser (or display) limits the frame rate — quality doesn't matter
   capMs: 0
 };
 
-// Lowering resolution only helps when the GPU is the bottleneck. When the browser caps the
-// page (Chrome Energy Saver, low battery, background throttling), frames arrive every 33.3 ms
-// no matter what — so if dropping to the lowest scale didn't change a steady interval at all,
-// we're capped: go back to full quality instead of blurring the picture for nothing.
+// Lowering resolution only helps when the GPU is the bottleneck. When the browser caps the page
+// (Chrome Energy Saver on battery, a 30 Hz display…) frames arrive every 33.3 ms no matter what.
+// So once we sit at the lowest scale and are still slow, we run a short A/B test: go back to full
+// quality for ~1.5 s. Same frame rate → capped: stay at 100 %. Slower → real GPU limit: back down,
+// and wait longer before trying again.
 function updatePerfGovernor(dtMs, nowMs) {
   const g = perfGovernor;
   const dt = clamp(dtMs, 4, 120);
   g.jitter = g.jitter * 0.9 + Math.abs(dt - g.emaMs) * 0.1;
   g.emaMs = g.emaMs * 0.9 + dt * 0.1;
-  const mode = state.renderQuality || 'auto';
-  if (mode === 'full') { g.scale = 1.0; return g.scale; }
-  if (mode === 'fast') { g.scale = 0.5; return g.scale; }
   if (g.capped) {
-    if (g.emaMs < g.capMs * 0.8) { g.capped = false; g.emaAtStart = 0; g.lastAdjust = nowMs; }        // cap lifted (plugged in)
-    else if (g.emaMs > g.capMs * 1.15) { g.capped = false; g.emaAtStart = 0; g.lastAdjust = nowMs; } // genuinely slower than the cap
-    else { g.scale = 1.0; return g.scale; }
+    if (g.emaMs < g.capMs * 0.8) { g.capped = false; g.lastAdjust = nowMs; g.probeWaitMs = 30000; }  // cap lifted (plugged in)
+    else if (g.emaMs > g.capMs * 1.15) { g.capped = false; g.lastAdjust = nowMs; }                     // genuinely slower than the cap
   }
+  const mode = state.renderQuality || 'auto';
+  if (mode === 'full') { g.scale = 1.0; g.probe = null; return g.scale; }
+  if (mode === 'fast') { g.scale = 0.5; g.probe = null; return g.scale; }
+  if (g.capped) { g.scale = 1.0; return g.scale; }
+
+  if (g.probe) {
+    const age = nowMs - g.probe.since;
+    if (age < 1500 || (age < 3000 && g.jitter > 2.5)) return g.scale;
+    const fullEma = g.emaMs;
+    const floorEma = g.probe.floorEma;
+    g.probe = null;
+    g.floorSince = 0;
+    g.lastAdjust = nowMs;
+    if (fullEma <= floorEma * 1.08) {
+      g.capped = true;
+      g.capMs = Math.max(fullEma, floorEma);
+      g.scale = 1.0;
+      g.ceiling = 1.0;
+      g.ceilingUntil = 0;
+    } else {
+      g.scale = 0.5;
+      g.ceiling = 0.5;
+      g.ceilingUntil = nowMs + 12000;
+      g.probeAfter = nowMs + g.probeWaitMs;
+      g.probeWaitMs = Math.min(300000, g.probeWaitMs * 2);
+    }
+    return g.scale;
+  }
+
   if (nowMs - g.lastAdjust < 700) return g.scale;
   if (nowMs > g.ceilingUntil) g.ceiling = 1.0;
   if (g.emaMs > 19.5 && g.scale > 0.5) {
-    if (g.scale >= 1.0 || !g.emaAtStart) g.emaAtStart = g.emaMs;
     g.ceiling = g.scale;
     g.ceilingUntil = nowMs + 12000;
     g.scale = Math.max(0.5, g.scale - 0.125);
@@ -88,14 +115,9 @@ function updatePerfGovernor(dtMs, nowMs) {
     g.floorSince = 0;
   } else if (g.emaMs > 19.5 && g.scale <= 0.5) {
     if (!g.floorSince) g.floorSince = nowMs;
-    const noBetter = g.emaAtStart > 0 && Math.abs(g.emaMs - g.emaAtStart) < g.emaAtStart * 0.08;
-    if (nowMs - g.floorSince > 3000 && noBetter && g.jitter < 2.5) {
-      g.capped = true;
-      g.capMs = g.emaMs;
+    if (nowMs - g.floorSince > 3000 && g.jitter < 2.5 && nowMs >= g.probeAfter) {
+      g.probe = { since: nowMs, floorEma: g.emaMs };
       g.scale = 1.0;
-      g.ceiling = 1.0;
-      g.ceilingUntil = 0;
-      g.floorSince = 0;
       g.lastAdjust = nowMs;
     }
   } else if (g.emaMs < 17.6) {
@@ -111,6 +133,12 @@ function updatePerfGovernor(dtMs, nowMs) {
     g.goodSince = 0;
   }
   return g.scale;
+}
+
+// A projector's alignment crosshair (ch.screen) is drawn only by that projector's output;
+// screen 0 = every output (pin/PnP helpers, single-output setups).
+function isCalibCrosshairForSlice(ch, projSlice) {
+  return !(ch && ch.screen && projSlice && projSlice.index !== ch.screen);
 }
 
 // 0 when not capped, otherwise the frame rate the browser allows (e.g. 30).
@@ -1628,6 +1656,22 @@ function renderMesh3DGeometryPass(surf, effectiveSrc, mvpMat, modelMat, normalMa
   return true;
 }
 
+// Surfaces fitted through one projector (a set-part face mapped with several projectors)
+// belong to that projector's output only: its projector window draws them, the others don't.
+// The operator's full Stage / 3D views show all of them; a P1/P2 preview tab filters like the window.
+function getCurrentOutputProjectorIndex() {
+  if (state.isProjectorRole) return Number(state.projectorScreenIndex) || 0;
+  const t = state.outputFeedTab;
+  return typeof t === 'string' && /^p\d+$/.test(t) ? Number(t.slice(1)) : 0;
+}
+
+function isSurfaceForCurrentOutput(surf) {
+  const p = Number(surf && (surf.outputProj || (surf.linkObject && surf.linkObject.proj))) || 0;
+  if (!p) return true;
+  const o = getCurrentOutputProjectorIndex();
+  return !o || o === p;
+}
+
 function renderSceneDescriptorToFbo(sceneDesc, outFbo, effStageAspect) {
   const surfaces = sceneDesc.surfaces || [];
   const groups = sceneDesc.groups || state.groups || [];
@@ -1670,6 +1714,7 @@ function renderSceneDescriptorToFbo(sceneDesc, outFbo, effStageAspect) {
     if (!eff.visible) continue;
     if (anySolo && !eff.solo) continue;
     if (eff.opacity <= 0.001) continue;
+    if (!isSurfaceForCurrentOutput(surf)) continue;
     if (surf.type !== 'mesh3d' && !surf.points) continue;
     if (surf.type === 'polygon' && surf.points.length < 3) continue;
     if (surf.type === 'line' && surf.points.length < 2) continue;
@@ -2496,9 +2541,9 @@ function renderWebGLWorkspace(dpr) {
           }
 
           const ch = state.calibCrosshair;
-          const chActive = !state.showLock && ch && ch.active && performance.now() < ch.expireMs
-            && !(ch.screen && projSlice && projSlice.index !== ch.screen); // a projector's own alignment crosshair
-          if (ch && ch.active && !chActive) ch.active = false;
+          const chLive = !!(ch && ch.active && performance.now() < ch.expireMs);
+          if (ch && ch.active && !chLive) ch.active = false; // expiry only — never because another projector is drawn
+          const chActive = chLive && !state.showLock && isCalibCrosshairForSlice(ch, projSlice);
           gl.uniform3f(
             xu.uCalibCrosshair,
             chActive ? ch.x : 0.5,

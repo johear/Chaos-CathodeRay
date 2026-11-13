@@ -114,7 +114,7 @@ function collectShowCheckItems() {
   }
   const capFps = typeof getBrowserFrameRateCap === 'function' ? getBrowserFrameRateCap() : 0;
   if (capFps) {
-    add(isAnyOutputWindowOpen() ? 'warn' : 'info', 'fpscap', `The browser limits this page to ${capFps} fps — usually battery saving. Plug in the power, or turn off Energy Saver in Chrome Settings → Performance.`, 'How?',
+    add(isAnyOutputWindowOpen() ? 'warn' : 'info', 'fpscap', `Frame rate is held at ${capFps} fps (lower quality wouldn't help) — usually battery saving. Plug in, or turn off Energy Saver in Chrome Settings → Performance.`, 'How?',
       () => { if (typeof showToast === 'function') showToast('Chrome: ⋮ → Settings → Performance → Energy Saver → off (or "only when unplugged"), and keep the laptop on mains power for shows.'); });
   }
   if (!isAnyOutputWindowOpen()) {

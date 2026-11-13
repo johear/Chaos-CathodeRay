@@ -267,7 +267,7 @@ function pickVenuePartFaceForProjector(part, hintNormal = null) {
 function getVenuePartFaceCoverage(part, face) {
   const g = getVenuePartFaceCorners(part, face);
   const out = [];
-  for (const R of getPrevizProjectorRefs().refs) {
+  for (const R of getAllProjectorRefs()) {
     const eye = R.opt?.eye || R.scr.posM;
     if (!Array.isArray(eye)) continue;
     const toProj = [eye[0] - g.center[0], eye[1] - g.center[1], eye[2] - g.center[2]];
@@ -290,15 +290,34 @@ function getVenuePartFaceCoverage(part, face) {
   return out.sort((a, b) => b.coverage - a.coverage || a.index - b.index);
 }
 
-// link.proj pins the face to one projector (multi-projector mapping); otherwise the projector
-// that lights it best.
+// Every enabled projector as a stage-UV reference — unlike the previz refs this ignores the
+// 3D view's projector solo (soloing or aligning P2 must not re-fit surfaces meant for P1).
+function getAllProjectorRefs() {
+  const mp = ensureMultiProjectorState();
+  const field = solveStagePlanOpticalField(mp);
+  const refs = [];
+  for (const scr of mp.screens || []) {
+    if (!scr || scr.enabled === false) continue;
+    const opt = field?.opticsByIndex?.get(scr.index);
+    if (opt) refs.push({ scr, opt, crop: getEffectiveProjectorCrop(scr, mp) });
+  }
+  return refs;
+}
+
+// link.proj pins the face to one projector (multi-projector mapping): if that projector is
+// gone or switched off, the surface keeps its last geometry (null) instead of jumping to
+// another lens. Without link.proj: the projector that lights it best.
 function computeVenuePartFaceStagePoints(link) {
   const part = getVenuePartById(link.id);
   if (!part || part.enabled === false) return null;
   const g = getVenuePartFaceCorners(part, link.face || '+z');
   let R = null;
-  if (link.proj) R = getPrevizProjectorRefs().refs.find(r => r.scr.index === Number(link.proj)) || null;
-  if (!R) R = getVenuePartFaceCoverage(part, link.face || '+z')[0]?.R || null;
+  if (link.proj) {
+    R = getAllProjectorRefs().find(r => r.scr.index === Number(link.proj)) || null;
+    if (!R) return null;
+  } else {
+    R = getVenuePartFaceCoverage(part, link.face || '+z')[0]?.R || null;
+  }
   if (!R) return null;
   const pts = g.corners.map(c => worldToStageUvViaRef(c, R));
   return pts.every(Boolean) ? { type: 'quad', points: pts, ref: R.scr.index } : null;
@@ -310,12 +329,16 @@ function mapMediaOntoVenuePart(id, face = null) {
   const f = face || pickVenuePartFaceForProjector(part, state.venueSel?.normal || null);
   const faceNames = { '+z': 'front', '-z': 'back', '+x': 'right', '-x': 'left', '+y': 'top', '-y': 'bottom' };
   const faceName = faceNames[f] || f;
-  const existing = (state.surfaces || []).find(s => s.linkObject && s.linkObject.kind === 'part' && s.linkObject.id === id && s.linkObject.face === f);
-  if (existing) {
-    if (typeof selectSurface === 'function') selectSurface(existing.id);
-    return existing;
-  }
+  const existing = (state.surfaces || []).filter(s => s.linkObject && s.linkObject.kind === 'part' && s.linkObject.id === id && s.linkObject.face === f);
   const cov = getVenuePartFaceCoverage(part, f);
+  const mp0 = state.multiProjector || {};
+  // Already mapped: with multi-projector output, add surfaces only for projectors that light the
+  // face but don't have one yet (e.g. output switched on after mapping, or one was deleted).
+  const missing = mp0.enabled ? cov.filter(c => !existing.some(s => Number(s.linkObject.proj) === c.index)) : [];
+  if (existing.length && !missing.length) {
+    if (typeof selectSurface === 'function') selectSurface(existing[0].id);
+    return existing[0];
+  }
   if (!cov.length) {
     if (typeof showToast === 'function') showToast(`No projector reaches the ${faceName} face of ${part.name} — aim one at it in BUILD first`);
     return null;
@@ -324,15 +347,18 @@ function mapMediaOntoVenuePart(id, face = null) {
   // With multi-projector output each projector shows its own part of the stage, so every
   // projector that lights the face gets its own exactly fitted surface. Without it all
   // projectors show the same stage, so one surface through the best projector.
-  const useProjs = mp.enabled ? cov : cov.slice(0, 1);
+  const useProjs = existing.length ? missing : (mp.enabled ? cov : cov.slice(0, 1));
   if (typeof pushUndoCheckpoint === 'function') pushUndoCheckpoint('Map onto face');
   const made = [];
+  for (const s0 of existing) {
+    if (s0.linkObject.proj && !/ · P\d+$/.test(s0.name || '')) s0.name = `${s0.name} · P${s0.linkObject.proj}`;
+  }
   for (const c of useProjs) {
     const link = { kind: 'part', id, face: f, proj: c.index };
     const g = computeVenuePartFaceStagePoints(link);
     if (!g) continue;
     const surf = createSurface('quad', {
-      name: `◼ ${part.name} · ${faceName}${useProjs.length > 1 ? ` · P${c.index}` : ''}`,
+      name: `◼ ${part.name} · ${faceName}${useProjs.length + existing.length > 1 ? ` · P${c.index}` : ''}`,
       sourceId: state.activeSourceId || 'src_shards',
       points: g.points,
       linkObject: link

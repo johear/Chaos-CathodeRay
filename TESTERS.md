@@ -102,7 +102,9 @@ Pick whichever matches your work; even ten minutes helps.
 
 ## 8. Known limitations in 0.1
 
-- On battery, Chrome's Energy Saver limits pages to **30 fps**. The FPS badge then shows **POWER CAP**. For shows, plug in the power, or turn Energy Saver off (Chrome Settings → Performance).
+- On battery, Chrome's Energy Saver limits pages to **30 fps**. The FPS badge then shows **FPS CAP** (quality stays at 100%). For shows, plug in the power, or turn Energy Saver off (Chrome Settings → Performance).
+- While **Blind**, generators and effects are held on stage, including their speed and pause. Playing, pausing or seeking a **video** still affects the stage immediately.
+- Typing sizes on dimensions works in BUILD and MAP, not in LIVE or under Show Lock.
 - The editable top **Plan** in BUILD is still a separate 2D drawing from the 3D views.
 - When you open a show on another computer, its media must be relinked. Use **Pack Show** to avoid this.
 - **Send** needs an internet connection. Offline, use Email instead, Copy or Download.
