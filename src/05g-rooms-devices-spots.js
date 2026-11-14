@@ -775,6 +775,7 @@ function setStudioRoom(nextRoom, opts = {}) {
   }
   syncRoomUI();
   if (typeof onRoomChangedForProgram === 'function') onRoomChangedForProgram(prevRoom, valid);
+  if (typeof carrySelectionAcrossRooms === 'function') carrySelectionAcrossRooms(prevRoom, valid);
   if (prevRoom !== valid && typeof document !== 'undefined') {
     const ae = document.activeElement;
     if (!ae || ae === document.body || (ae.closest && ae.closest('.spa-room-dock.inactive'))) {

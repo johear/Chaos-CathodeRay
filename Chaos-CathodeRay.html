@@ -33434,6 +33434,7 @@ function setStudioRoom(nextRoom, opts = {}) {
   }
   syncRoomUI();
   if (typeof onRoomChangedForProgram === 'function') onRoomChangedForProgram(prevRoom, valid);
+  if (typeof carrySelectionAcrossRooms === 'function') carrySelectionAcrossRooms(prevRoom, valid);
   if (prevRoom !== valid && typeof document !== 'undefined') {
     const ae = document.activeElement;
     if (!ae || ae === document.body || (ae.closest && ae.closest('.spa-room-dock.inactive'))) {
@@ -42793,6 +42794,7 @@ function initBetaModule(restoredAutosave = false, opts = {}) {
 //   2. Message strip + next-step line: the single next action, worked out from the show.
 //   3. Blank means blank: a new show has no surface, one projector, no person, no spot.
 //   4. Show parts: panels appear when the show first contains them; ＋ Add to show; Show all tools.
+//   5. The current thing: selection carries between rooms and is never stale.
 // ============================================================================
 
 // ----------------------------------------------------------------------------
@@ -43245,8 +43247,59 @@ function initShowParts() {
     try { if (e.target.checked) localStorage.setItem(SHOW_ALL_TOOLS_KEY, '1'); else localStorage.removeItem(SHOW_ALL_TOOLS_KEY); } catch (_) {}
     syncShowPartsUI(true);
   });
-  setInterval(() => syncShowPartsUI(false), 700);
+  setInterval(() => { syncShowPartsUI(false); validateActiveSelection(); }, 700);
   syncShowPartsUI(true);
+}
+
+// ----------------------------------------------------------------------------
+// 5. THE CURRENT THING
+// BUILD → MAP: a selected object (set part, screen, person) selects the surface mapped onto it.
+// MAP → BUILD: a surface selects its object, or — for a flat surface — its projector.
+// LIVE never changes the selection. A selection whose thing is gone is cleared.
+// ----------------------------------------------------------------------------
+const LINK_KIND_TO_SEL = { prop: 'world_prop', screen: 'world_screen', part: 'venue_part' };
+const SEL_KIND_TO_LINK = { world_prop: 'prop', world_screen: 'screen', venue_part: 'part' };
+
+function carrySelectionAcrossRooms(prevRoom, nextRoom) {
+  const sel = state.activeSelection;
+  if (!sel || !sel.kind || nextRoom === 'live' || prevRoom === nextRoom) return;
+  if (nextRoom === 'map') {
+    const lk = SEL_KIND_TO_LINK[sel.kind];
+    if (!lk) return;
+    const surf = (state.surfaces || []).find(s => s && s.linkObject && s.linkObject.kind === lk && String(s.linkObject.id) === String(sel.id));
+    if (!surf) return;
+    if (typeof selectSurface === 'function') selectSurface(surf.id);
+    if (typeof setActiveSelection === 'function') setActiveSelection('surface', surf.id, surf.name);
+  } else if (nextRoom === 'build' && sel.kind === 'surface') {
+    const surf = (state.surfaces || []).find(s => s && s.id === sel.id);
+    if (!surf || typeof selectVenueObject !== 'function') return;
+    const link = surf.linkObject;
+    if (link && LINK_KIND_TO_SEL[link.kind]) {
+      selectVenueObject(LINK_KIND_TO_SEL[link.kind], link.id);
+    } else {
+      const mp = state.multiProjector || {};
+      const idx = Number(link && link.proj) || Number(mp.selectedScreenIndex) || (mp.screens && mp.screens[0] && mp.screens[0].index) || 0;
+      if (idx) selectVenueObject('projector', idx);
+    }
+  }
+}
+
+function isSelectionAlive(sel) {
+  if (!sel || !sel.kind) return true;
+  switch (sel.kind) {
+    case 'surface': return (state.surfaces || []).some(s => s && s.id === sel.id);
+    case 'venue_part': return typeof getVenuePartById === 'function' ? !!getVenuePartById(sel.id) : true;
+    case 'world_screen': return (state.worldScreens || []).some(w => w && w.id === sel.id);
+    case 'world_prop': return (state.worldProps || []).some(p => p && p.id === sel.id);
+    case 'projector': return (state.multiProjector?.screens || []).some(s => String(s.index) === String(sel.id));
+    case 'spot': return (state.spots || []).some(s => s && s.id === sel.id);
+    case 'mask': return (state.masks || []).some(m => m && m.id === sel.id);
+    default: return true;
+  }
+}
+
+function validateActiveSelection() {
+  if (!isSelectionAlive(state.activeSelection) && typeof setActiveSelection === 'function') setActiveSelection(null, null, '');
 }
 
 // ----------------------------------------------------------------------------

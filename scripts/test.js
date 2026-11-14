@@ -2772,6 +2772,23 @@ const vmScript = `
     applyWorkflowContext('architectural');
     assert(mpB.screens.length === 2 && state.venueParts.some(pp => pp.kind === 'building'), 'Architectural kit adds a facade and a second projector');
     assert(isShowPartOn('venue') && isShowPartOn('projectors') && isShowPartOn('followspot'), 'Kits switch on the parts they bring');
+    // The current thing carries between rooms; a deleted thing is never named.
+    const facadeC = state.venueParts.find(pp => pp.kind === 'building');
+    ensureMultiProjectorState().enabled = false;
+    const linkedC = mapMediaOntoVenuePart(facadeC.id, '+z');
+    setStudioRoom('build', { silent: true });
+    selectVenueObject('venue_part', facadeC.id);
+    setStudioRoom('map', { silent: true });
+    assert(state.activeSelection.kind === 'surface' && state.activeSelection.id === linkedC.id, 'BUILD → MAP: the facade selects the surface mapped onto it');
+    setStudioRoom('build', { silent: true });
+    assert(state.activeSelection.kind === 'venue_part' && state.activeSelection.id === facadeC.id, 'MAP → BUILD: the surface selects its object');
+    const flatC = createSurface('quad', { name: 'Flat' }); state.surfaces.push(flatC);
+    setStudioRoom('map', { silent: true }); selectSurface(flatC.id); setActiveSelection('surface', flatC.id, flatC.name);
+    setStudioRoom('build', { silent: true });
+    assert(state.activeSelection.kind === 'projector', 'MAP → BUILD: a flat surface selects its projector');
+    setActiveSelection('surface', 'gone_123', 'Gone');
+    validateActiveSelection();
+    assert(!state.activeSelection.kind, 'A selection whose thing is gone is cleared');
   }
   console.log('✓ [22/22] 0.2 growth UX verified');
   console.log('✓ [21/21] Chaos CathodeRay 0.1 beta: identity & compatibility, Plan/sides/Lines view model, Show Check & problem report verified');
