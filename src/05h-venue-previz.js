@@ -1903,6 +1903,10 @@ function syncVenueHudUI() {
       const el = e.target;
       if (el.dataset.k) spx[el.dataset.k] = parseFloat(el.value);
     });
+    hud.addEventListener('change', (e) => {
+      const el = e.target;
+      if (el && el.hasAttribute && el.hasAttribute('data-side') && el.value) setVenueCameraMode(el.value);
+    });
   }
   if (hud.parentElement !== host) host.appendChild(hud);
   hud.hidden = false;
@@ -1936,27 +1940,27 @@ function syncVenueHudUI() {
           <button type="button" class="seg-btn${planOn ? ' active' : ''}" data-cam="plan" aria-pressed="${planOn}" title="${isRigWorldViewContext() ? 'Plan: the editable top-down drawing — drag screens, projectors, parts &amp; the floorplan' : 'Plan: top view as a measured drawing'}">▦ Plan</button>
           <button type="button" class="seg-btn${persp ? ' active' : ''}" data-cam="orbit" aria-pressed="${persp}" title="3D: orbit around the venue in perspective">⟲ 3D</button>
           <button type="button" class="seg-btn${!rigPlan && walk ? ' active' : ''}" data-cam="walk" aria-pressed="${!rigPlan && walk}" title="Walk through the venue at eye height">🚶 Walk</button>
-          <button type="button" class="seg-btn${!rigPlan && pov ? ' active' : ''}" data-cam="pov" aria-pressed="${!rigPlan && pov}" title="Look through a projector's lens — pixel-true mapping view (pick the projector with P1/P2…)">📽 POV${!rigPlan && pov ? ' P' + povIdx : ''}</button>
+          <button type="button" class="seg-btn${!rigPlan && pov ? ' active' : ''}" data-cam="pov" aria-pressed="${!rigPlan && pov}" title="Look through a projector's lens — pixel-true mapping view">📽 POV${!rigPlan && pov ? ' P' + povIdx : ''}</button>
         </div>
-        <span class="venue-hud-sep"></span>
-        <button type="button" class="venue-chip${solo === 0 ? ' active' : ''}" data-solo="0" title="Light from every projector">All</button>
-        ${projBtns}
-      </div>
-      <div class="venue-hud-row">
-        <div class="seg-group venue-viewcube" role="group" aria-label="Orthographic views">
-          ${Object.entries(VENUE_ORTHO_VIEWS).map(([k, v]) => `<button type="button" class="seg-btn${ortho === k ? ' active' : ''}" data-cam="${k}" aria-pressed="${ortho === k}" title="${v.label} view (orthographic, true scale)${k === 'top' ? ' — spot plot: up = upstage' : ''}">${v.label}</button>`).join('')}
-        </div>
-      </div>
-      ${ortho ? `<div class="venue-hud-row">
-        <div class="seg-group" role="group" aria-label="Look">
+        <select class="hud-side${ortho && ortho !== 'top' || (ortho === 'top' && !planOn) ? ' active' : ''}" data-side aria-label="Look from a side (true scale)" title="Look from a side, flat and true to scale">
+          <option value=""${ortho ? '' : ' selected'}>Side ▾</option>
+          ${Object.entries(VENUE_ORTHO_VIEWS).map(([k, v]) => `<option value="${k}"${ortho === k ? ' selected' : ''}>${v.label}</option>`).join('')}
+        </select>
+        ${ortho ? `<div class="seg-group" role="group" aria-label="Look">
           <button type="button" class="seg-btn${look === 'lines' ? ' active' : ''}" data-look="lines" aria-pressed="${look === 'lines'}" title="Lines: a measured drawing — outlines, sizes &amp; heights in metres over a dimmed render">✎ Lines</button>
           <button type="button" class="seg-btn${look === 'light' ? ' active' : ''}" data-look="light" aria-pressed="${look === 'light'}" title="Light: the rendered venue with every projector's light">☀ Light</button>
-        </div>
-      </div>` : ''}
-      ${rigPlan ? '' : `<div class="venue-hud-row">
-        <label title="Atmospheric haze (beams become visible). Hazer DMX devices add to this.">Haze <input type="range" min="0" max="1" step="0.01" data-k="previzHaze" value="${clamp(Number(sp.previzHaze ?? 0.22), 0, 1)}"></label>
-        <label title="House / work light level">House <input type="range" min="0" max="1" step="0.01" data-k="previzHouse" value="${clamp(Number(sp.previzHouse ?? 0.32), 0, 1)}"></label>
-      </div>`}
+        </div>` : ''}
+        ${(mp.screens || []).length > 1 ? `<span class="venue-hud-sep"></span>
+        <button type="button" class="venue-chip${solo === 0 ? ' active' : ''}" data-solo="0" title="Light from every projector">All</button>
+        ${projBtns}` : ''}
+        ${rigPlan ? '' : `<details class="hud-gear">
+          <summary title="Haze and house light" aria-label="Haze and house light">⚙</summary>
+          <div class="hud-gear-pop">
+            <label title="Atmospheric haze (beams become visible). Hazer DMX devices add to this.">Haze <input type="range" min="0" max="1" step="0.01" data-k="previzHaze" value="${clamp(Number(sp.previzHaze ?? 0.22), 0, 1)}"></label>
+            <label title="House / work light level">House <input type="range" min="0" max="1" step="0.01" data-k="previzHouse" value="${clamp(Number(sp.previzHouse ?? 0.32), 0, 1)}"></label>
+          </div>
+        </details>`}
+      </div>
       <div class="venue-hud-hint">${rigPlan
         ? 'Plan · drag screens, projectors, parts &amp; people · drag a beam tip to aim · Alt+drag a part to rotate · scroll to zoom'
         : ortho

@@ -329,6 +329,7 @@ function syncShowPartsUI(force = false) {
   const changed = sig !== _showPartsSig;
   _showPartsSig = sig;
   for (const p of Object.keys(SHOW_PARTS)) document.body.classList.toggle(`part-off-${p}`, off.includes(p));
+  syncInspectorMoreUI();
   renderAddToShowList();
   renderRoomInvites();
   if (changed) {
@@ -395,6 +396,23 @@ function enablePartsForPaletteItem(item) {
   if (typeof showToast === 'function') showToast(`Turned on: ${turnOn.map(k => SHOW_PARTS[k].label).join(', ')}`);
 }
 
+// Beginner inspector: new shows show the basics (source, opacity & blending, colour); the rest
+// folds under "More settings". Older shows and "Show all tools" show everything.
+function isInspectorBasic() {
+  return Array.isArray(state.showParts) && !isShowAllTools() && !state.inspMoreOpen;
+}
+
+function syncInspectorMoreUI() {
+  if (typeof document === 'undefined' || !document.body) return;
+  const basic = isInspectorBasic();
+  document.body.classList.toggle('insp-basic', basic);
+  const b = document.getElementById('btn-insp-more');
+  if (!b) return;
+  b.hidden = !Array.isArray(state.showParts) || isShowAllTools();
+  b.setAttribute('aria-expanded', String(!basic));
+  b.innerHTML = basic ? 'More settings ▾ <span>warping, crop, shutters, outline, effects</span>' : 'Fewer settings ▴';
+}
+
 // Empty rooms invite: LIVE offers the next performance parts; BUILD says the show is flat.
 const LIVE_INVITES = [
   { part: 'cues', icon: '▶', title: 'Store it as cue 1', text: 'Your show has one look. Store it, build more looks in MAP, then GO through them here.', label: 'Store cue 1' },
@@ -429,6 +447,7 @@ function initShowParts() {
     if (part === 'mixer' && state.room === 'live' && typeof setLayoutMode === 'function') setLayoutMode('mix');
   });
   document.getElementById('btn-add-venue')?.addEventListener('click', () => addShowPart('venue'));
+  document.getElementById('btn-insp-more')?.addEventListener('click', () => { state.inspMoreOpen = !state.inspMoreOpen; syncInspectorMoreUI(); });
   document.getElementById('add-part-list')?.addEventListener('click', (e) => {
     const b = e.target.closest('[data-add-part]');
     if (!b) return;

@@ -2047,7 +2047,7 @@ function syncOutputFeedTabsUI() {
   const isStage = isBuildRoom()
     ? (state.buildViewMode === 'warp' && state.outputFeedTab === 'stage')
     : (state.outputFeedTab === 'stage');
-  html += `<button type="button" class="feed-tab-btn${isStage ? ' active' : ''}" role="tab" aria-selected="${isStage}" data-feed="stage" title="Canonical Composited Stage Output">Stage</button>`;
+  html += `<button type="button" class="feed-tab-btn${isStage ? ' active' : ''}" role="tab" aria-selected="${isStage}" data-feed="stage" title="Output: exactly the picture the projectors send, flat">Output</button>`;
   if (!isBuildRoom() && (typeof isShowPartOn !== 'function' || isShowPartOn('venue') || state.outputFeedTab === 'venue3d')) {
     const isVenue = state.outputFeedTab === 'venue3d';
     html += `<button type="button" class="feed-tab-btn venue-tab${isVenue ? ' active' : ''}" role="tab" aria-selected="${isVenue}" data-feed="venue3d" title="Walk through the venue: every projector's real output, people, lights &amp; haze in 3D">3D Venue</button>`;

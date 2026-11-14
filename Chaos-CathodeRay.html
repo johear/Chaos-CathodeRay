@@ -4059,6 +4059,19 @@
     .invite-card strong { color: var(--text-main); font-size: 12px; }
     .live-invites { display: flex; flex-direction: column; }
     .live-invites[hidden] { display: none; }
+    /* 0.2 One-row view bar */
+    .venue-hud .venue-hud-row { flex-wrap: nowrap; }
+    .hud-side { padding: 2px 4px; border-radius: 6px; border: 1px solid var(--border-panel); background: rgba(255, 255, 255, 0.04); color: var(--text-main); font: inherit; font-size: 10px; }
+    .hud-side.active { border-color: var(--brand-color); color: var(--brand-color); }
+    .hud-gear { position: relative; }
+    .hud-gear > summary { list-style: none; cursor: pointer; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--border-panel); font-size: 11px; }
+    .hud-gear > summary::-webkit-details-marker { display: none; }
+    .hud-gear-pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 8; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-panel); background: rgba(8, 12, 20, 0.96); white-space: nowrap; }
+    /* 0.2 Beginner inspector */
+    body.insp-basic [data-insp-more] { display: none !important; }
+    .insp-more-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; margin: 2px 0 8px; padding: 6px 10px; text-align: left; }
+    .insp-more-btn span { font-size: 9.5px; color: var(--text-muted); font-weight: 400; }
+    .insp-more-btn[hidden] { display: none; }
 
   </style>
 </head>
@@ -4106,7 +4119,7 @@
       <div class="topbar-group">
         <div class="brand-mark">
           <span class="brand-diamond" aria-hidden="true">◈</span>
-          <h1 style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.05em;">CHAOS CATHODERAY</h1>
+          <h1 style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.02em;">CHAOS CATHODERAY</h1>
           <button type="button" class="brand-sub beta-badge" id="btn-beta-badge" title="Chaos CathodeRay 0.1.0 public beta — click to report a problem">β 0.1</button>
         </div>
         <div class="divider-v"></div>
@@ -4151,7 +4164,7 @@
         <div class="seg-group map-room-only" role="group" aria-label="Viewport Layout">
           <button type="button" class="seg-btn active" id="btn-view-split" title="Split Input UV &amp; Stage (1)">◫ Split</button>
           <button type="button" class="seg-btn" id="btn-view-input" title="Input UV / 3D Orbit Only (2)">◧ Input</button>
-          <button type="button" class="seg-btn" id="btn-view-output" title="Output Stage Only (3)">◨ Stage</button>
+          <button type="button" class="seg-btn" id="btn-view-output" title="Output only (3)">◨ Output</button>
           <button type="button" class="seg-btn" data-part="mixer" id="btn-view-mix" title="Spatial Mixing Radar &amp; 2D Cue Constellation (4 / V)">◎ Mix</button>
           <button type="button" class="seg-btn world-only" id="btn-view-rig" title="Non-Modal 2D/3D Physical Stage Rig &amp; Constant-Brightness View beside Live Stage (5)">◪ Rig</button>
         </div>
@@ -4824,7 +4837,7 @@
           <div id="surface-inspector-cards" style="display:flex;flex-direction:column;gap:7px;">
             <div class="insp-card">
               <div class="insp-title">
-                <span>1. Surface &amp; Source</span>
+                <span>Surface &amp; Source</span>
                 <span id="insp-id-label" style="color:var(--text-muted);">#1 • QUAD</span>
               </div>
               <div class="ctrl-row" style="grid-template-columns: 58px 1fr;">
@@ -4870,9 +4883,9 @@
             </div>
 
             <!-- PHASE 3.2: SUBDIVIDED MESH & BEZIER WARPING (For Quad Surfaces) -->
-            <div class="insp-card" id="card-mesh-warp">
+            <div class="insp-card" data-insp-more id="card-mesh-warp">
               <div class="insp-title warm">
-                <span>2. Mesh &amp; Bezier Warping</span>
+                <span>Mesh &amp; Bezier Warping</span>
               </div>
               <div class="ctrl-row" style="grid-template-columns: 62px 1fr;">
                 <label class="ctrl-label" for="sel-quad-warp">Mode</label>
@@ -4934,7 +4947,7 @@
             <!-- MILESTONE 2: ARCHITECTURAL LINE & CHASE FX (For Line Surfaces) -->
             <div class="insp-card" id="card-line-props" hidden style="display:none;">
               <div class="insp-title warm">
-                <span>2. Architectural Line &amp; Chase FX</span>
+                <span>Architectural Line &amp; Chase FX</span>
               </div>
               <div class="btn-grid-2">
                 <button type="button" class="btn" id="btn-line-closed">Closed Loop</button>
@@ -5140,7 +5153,7 @@
             <!-- COMPOSITING & BLEND -->
             <div class="insp-card">
               <div class="insp-title emerald">
-                <span>3. Compositing &amp; Blend</span>
+                <span>Compositing &amp; Blend</span>
                 <button type="button" class="btn emerald" id="btn-feather-unlink" style="padding:1px 6px;font-size:9px;" title="Toggle Independent Left / Right / Top / Bottom Edge Feathering">4-Edge</button>
               </div>
               <div class="ctrl-row" style="grid-template-columns: 80px 1fr;">
@@ -5252,7 +5265,7 @@
             <!-- COLOR GRADING -->
             <div class="insp-card">
               <div class="insp-title">
-                <span>4. Color Grading</span>
+                <span>Color Grading</span>
                 <button type="button" class="btn" id="btn-reset-color" style="padding:1px 6px;font-size:9px;">Reset</button>
               </div>
               <div class="ctrl-row">
@@ -5305,10 +5318,11 @@
               </div>
             </div>
 
+            <button type="button" class="btn insp-more-btn" id="btn-insp-more" aria-expanded="false">More settings ▾ <span>warping, crop, shutters, outline, effects</span></button>
             <!-- INPUT UV SLICE -->
-            <div class="insp-card">
+            <div class="insp-card" data-insp-more>
               <div class="insp-title warm">
-                <span>5. Input UV Slice &amp; Crop</span>
+                <span>Input UV Slice &amp; Crop</span>
                 <button type="button" class="btn" id="btn-reset-uv" style="padding:1px 6px;font-size:9px;">Reset UV</button>
               </div>
               <div id="uv-rect-inspector" style="display:flex;flex-direction:column;gap:5px;">
@@ -5395,7 +5409,7 @@
             </div>
 
             <!-- MILESTONE 7C + P7: THEATRICAL 4-BLADE ELLIPSOIDAL FRAMING SHUTTERS -->
-            <details class="insp-card studio-disclosure" id="disc-framing-shutters">
+            <details class="insp-card studio-disclosure" data-insp-more id="disc-framing-shutters">
               <summary class="studio-disclosure-summary warm">
                 <span>Theatrical 4-Blade Framing Shutters</span>
                 <span id="badge-shutter-status" class="disc-badge">Open</span>
@@ -5455,9 +5469,9 @@
             </details>
 
             <!-- UNIVERSAL PERIMETER CHASE OUTLINE FX -->
-            <div class="insp-card" id="card-border-fx">
+            <div class="insp-card" data-insp-more id="card-border-fx">
               <div class="insp-title violet">
-                <span>6. Perimeter Chase Outline FX</span>
+                <span>Perimeter Chase Outline FX</span>
               </div>
               <div class="ctrl-row">
                 <label class="ctrl-label" for="ctrl-border-width">Outline Width</label>
@@ -5490,9 +5504,9 @@
             </div>
 
             <!-- STACKABLE PER-SURFACE GPU POST-FX RACK -->
-            <div class="insp-card" id="card-surf-fx">
+            <div class="insp-card" data-insp-more id="card-surf-fx">
               <div class="insp-title emerald">
-                <span>7. GPU Post-FX Rack</span>
+                <span>GPU Post-FX Rack</span>
                 <button type="button" class="btn" id="btn-clear-surf-fx" style="padding:1px 6px;font-size:9px;">Clear</button>
               </div>
               <div style="display:flex;gap:4px;align-items:center;">
@@ -34692,7 +34706,7 @@ function syncOutputFeedTabsUI() {
   const isStage = isBuildRoom()
     ? (state.buildViewMode === 'warp' && state.outputFeedTab === 'stage')
     : (state.outputFeedTab === 'stage');
-  html += `<button type="button" class="feed-tab-btn${isStage ? ' active' : ''}" role="tab" aria-selected="${isStage}" data-feed="stage" title="Canonical Composited Stage Output">Stage</button>`;
+  html += `<button type="button" class="feed-tab-btn${isStage ? ' active' : ''}" role="tab" aria-selected="${isStage}" data-feed="stage" title="Output: exactly the picture the projectors send, flat">Output</button>`;
   if (!isBuildRoom() && (typeof isShowPartOn !== 'function' || isShowPartOn('venue') || state.outputFeedTab === 'venue3d')) {
     const isVenue = state.outputFeedTab === 'venue3d';
     html += `<button type="button" class="feed-tab-btn venue-tab${isVenue ? ' active' : ''}" role="tab" aria-selected="${isVenue}" data-feed="venue3d" title="Walk through the venue: every projector's real output, people, lights &amp; haze in 3D">3D Venue</button>`;
@@ -38351,6 +38365,10 @@ function syncVenueHudUI() {
       const el = e.target;
       if (el.dataset.k) spx[el.dataset.k] = parseFloat(el.value);
     });
+    hud.addEventListener('change', (e) => {
+      const el = e.target;
+      if (el && el.hasAttribute && el.hasAttribute('data-side') && el.value) setVenueCameraMode(el.value);
+    });
   }
   if (hud.parentElement !== host) host.appendChild(hud);
   hud.hidden = false;
@@ -38384,27 +38402,27 @@ function syncVenueHudUI() {
           <button type="button" class="seg-btn${planOn ? ' active' : ''}" data-cam="plan" aria-pressed="${planOn}" title="${isRigWorldViewContext() ? 'Plan: the editable top-down drawing — drag screens, projectors, parts &amp; the floorplan' : 'Plan: top view as a measured drawing'}">▦ Plan</button>
           <button type="button" class="seg-btn${persp ? ' active' : ''}" data-cam="orbit" aria-pressed="${persp}" title="3D: orbit around the venue in perspective">⟲ 3D</button>
           <button type="button" class="seg-btn${!rigPlan && walk ? ' active' : ''}" data-cam="walk" aria-pressed="${!rigPlan && walk}" title="Walk through the venue at eye height">🚶 Walk</button>
-          <button type="button" class="seg-btn${!rigPlan && pov ? ' active' : ''}" data-cam="pov" aria-pressed="${!rigPlan && pov}" title="Look through a projector's lens — pixel-true mapping view (pick the projector with P1/P2…)">📽 POV${!rigPlan && pov ? ' P' + povIdx : ''}</button>
+          <button type="button" class="seg-btn${!rigPlan && pov ? ' active' : ''}" data-cam="pov" aria-pressed="${!rigPlan && pov}" title="Look through a projector's lens — pixel-true mapping view">📽 POV${!rigPlan && pov ? ' P' + povIdx : ''}</button>
         </div>
-        <span class="venue-hud-sep"></span>
-        <button type="button" class="venue-chip${solo === 0 ? ' active' : ''}" data-solo="0" title="Light from every projector">All</button>
-        ${projBtns}
-      </div>
-      <div class="venue-hud-row">
-        <div class="seg-group venue-viewcube" role="group" aria-label="Orthographic views">
-          ${Object.entries(VENUE_ORTHO_VIEWS).map(([k, v]) => `<button type="button" class="seg-btn${ortho === k ? ' active' : ''}" data-cam="${k}" aria-pressed="${ortho === k}" title="${v.label} view (orthographic, true scale)${k === 'top' ? ' — spot plot: up = upstage' : ''}">${v.label}</button>`).join('')}
-        </div>
-      </div>
-      ${ortho ? `<div class="venue-hud-row">
-        <div class="seg-group" role="group" aria-label="Look">
+        <select class="hud-side${ortho && ortho !== 'top' || (ortho === 'top' && !planOn) ? ' active' : ''}" data-side aria-label="Look from a side (true scale)" title="Look from a side, flat and true to scale">
+          <option value=""${ortho ? '' : ' selected'}>Side ▾</option>
+          ${Object.entries(VENUE_ORTHO_VIEWS).map(([k, v]) => `<option value="${k}"${ortho === k ? ' selected' : ''}>${v.label}</option>`).join('')}
+        </select>
+        ${ortho ? `<div class="seg-group" role="group" aria-label="Look">
           <button type="button" class="seg-btn${look === 'lines' ? ' active' : ''}" data-look="lines" aria-pressed="${look === 'lines'}" title="Lines: a measured drawing — outlines, sizes &amp; heights in metres over a dimmed render">✎ Lines</button>
           <button type="button" class="seg-btn${look === 'light' ? ' active' : ''}" data-look="light" aria-pressed="${look === 'light'}" title="Light: the rendered venue with every projector's light">☀ Light</button>
-        </div>
-      </div>` : ''}
-      ${rigPlan ? '' : `<div class="venue-hud-row">
-        <label title="Atmospheric haze (beams become visible). Hazer DMX devices add to this.">Haze <input type="range" min="0" max="1" step="0.01" data-k="previzHaze" value="${clamp(Number(sp.previzHaze ?? 0.22), 0, 1)}"></label>
-        <label title="House / work light level">House <input type="range" min="0" max="1" step="0.01" data-k="previzHouse" value="${clamp(Number(sp.previzHouse ?? 0.32), 0, 1)}"></label>
-      </div>`}
+        </div>` : ''}
+        ${(mp.screens || []).length > 1 ? `<span class="venue-hud-sep"></span>
+        <button type="button" class="venue-chip${solo === 0 ? ' active' : ''}" data-solo="0" title="Light from every projector">All</button>
+        ${projBtns}` : ''}
+        ${rigPlan ? '' : `<details class="hud-gear">
+          <summary title="Haze and house light" aria-label="Haze and house light">⚙</summary>
+          <div class="hud-gear-pop">
+            <label title="Atmospheric haze (beams become visible). Hazer DMX devices add to this.">Haze <input type="range" min="0" max="1" step="0.01" data-k="previzHaze" value="${clamp(Number(sp.previzHaze ?? 0.22), 0, 1)}"></label>
+            <label title="House / work light level">House <input type="range" min="0" max="1" step="0.01" data-k="previzHouse" value="${clamp(Number(sp.previzHouse ?? 0.32), 0, 1)}"></label>
+          </div>
+        </details>`}
+      </div>
       <div class="venue-hud-hint">${rigPlan
         ? 'Plan · drag screens, projectors, parts &amp; people · drag a beam tip to aim · Alt+drag a part to rotate · scroll to zoom'
         : ortho
@@ -43098,6 +43116,7 @@ function syncShowPartsUI(force = false) {
   const changed = sig !== _showPartsSig;
   _showPartsSig = sig;
   for (const p of Object.keys(SHOW_PARTS)) document.body.classList.toggle(`part-off-${p}`, off.includes(p));
+  syncInspectorMoreUI();
   renderAddToShowList();
   renderRoomInvites();
   if (changed) {
@@ -43164,6 +43183,23 @@ function enablePartsForPaletteItem(item) {
   if (typeof showToast === 'function') showToast(`Turned on: ${turnOn.map(k => SHOW_PARTS[k].label).join(', ')}`);
 }
 
+// Beginner inspector: new shows show the basics (source, opacity & blending, colour); the rest
+// folds under "More settings". Older shows and "Show all tools" show everything.
+function isInspectorBasic() {
+  return Array.isArray(state.showParts) && !isShowAllTools() && !state.inspMoreOpen;
+}
+
+function syncInspectorMoreUI() {
+  if (typeof document === 'undefined' || !document.body) return;
+  const basic = isInspectorBasic();
+  document.body.classList.toggle('insp-basic', basic);
+  const b = document.getElementById('btn-insp-more');
+  if (!b) return;
+  b.hidden = !Array.isArray(state.showParts) || isShowAllTools();
+  b.setAttribute('aria-expanded', String(!basic));
+  b.innerHTML = basic ? 'More settings ▾ <span>warping, crop, shutters, outline, effects</span>' : 'Fewer settings ▴';
+}
+
 // Empty rooms invite: LIVE offers the next performance parts; BUILD says the show is flat.
 const LIVE_INVITES = [
   { part: 'cues', icon: '▶', title: 'Store it as cue 1', text: 'Your show has one look. Store it, build more looks in MAP, then GO through them here.', label: 'Store cue 1' },
@@ -43198,6 +43234,7 @@ function initShowParts() {
     if (part === 'mixer' && state.room === 'live' && typeof setLayoutMode === 'function') setLayoutMode('mix');
   });
   document.getElementById('btn-add-venue')?.addEventListener('click', () => addShowPart('venue'));
+  document.getElementById('btn-insp-more')?.addEventListener('click', () => { state.inspMoreOpen = !state.inspMoreOpen; syncInspectorMoreUI(); });
   document.getElementById('add-part-list')?.addEventListener('click', (e) => {
     const b = e.target.closest('[data-add-part]');
     if (!b) return;

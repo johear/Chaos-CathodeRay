@@ -41,7 +41,7 @@
       <div class="topbar-group">
         <div class="brand-mark">
           <span class="brand-diamond" aria-hidden="true">◈</span>
-          <h1 style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.05em;">CHAOS CATHODERAY</h1>
+          <h1 style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.02em;">CHAOS CATHODERAY</h1>
           <button type="button" class="brand-sub beta-badge" id="btn-beta-badge" title="Chaos CathodeRay 0.1.0 public beta — click to report a problem">β 0.1</button>
         </div>
         <div class="divider-v"></div>
@@ -86,7 +86,7 @@
         <div class="seg-group map-room-only" role="group" aria-label="Viewport Layout">
           <button type="button" class="seg-btn active" id="btn-view-split" title="Split Input UV &amp; Stage (1)">◫ Split</button>
           <button type="button" class="seg-btn" id="btn-view-input" title="Input UV / 3D Orbit Only (2)">◧ Input</button>
-          <button type="button" class="seg-btn" id="btn-view-output" title="Output Stage Only (3)">◨ Stage</button>
+          <button type="button" class="seg-btn" id="btn-view-output" title="Output only (3)">◨ Output</button>
           <button type="button" class="seg-btn" data-part="mixer" id="btn-view-mix" title="Spatial Mixing Radar &amp; 2D Cue Constellation (4 / V)">◎ Mix</button>
           <button type="button" class="seg-btn world-only" id="btn-view-rig" title="Non-Modal 2D/3D Physical Stage Rig &amp; Constant-Brightness View beside Live Stage (5)">◪ Rig</button>
         </div>
@@ -759,7 +759,7 @@
           <div id="surface-inspector-cards" style="display:flex;flex-direction:column;gap:7px;">
             <div class="insp-card">
               <div class="insp-title">
-                <span>1. Surface &amp; Source</span>
+                <span>Surface &amp; Source</span>
                 <span id="insp-id-label" style="color:var(--text-muted);">#1 • QUAD</span>
               </div>
               <div class="ctrl-row" style="grid-template-columns: 58px 1fr;">
@@ -805,9 +805,9 @@
             </div>
 
             <!-- PHASE 3.2: SUBDIVIDED MESH & BEZIER WARPING (For Quad Surfaces) -->
-            <div class="insp-card" id="card-mesh-warp">
+            <div class="insp-card" data-insp-more id="card-mesh-warp">
               <div class="insp-title warm">
-                <span>2. Mesh &amp; Bezier Warping</span>
+                <span>Mesh &amp; Bezier Warping</span>
               </div>
               <div class="ctrl-row" style="grid-template-columns: 62px 1fr;">
                 <label class="ctrl-label" for="sel-quad-warp">Mode</label>
@@ -869,7 +869,7 @@
             <!-- MILESTONE 2: ARCHITECTURAL LINE & CHASE FX (For Line Surfaces) -->
             <div class="insp-card" id="card-line-props" hidden style="display:none;">
               <div class="insp-title warm">
-                <span>2. Architectural Line &amp; Chase FX</span>
+                <span>Architectural Line &amp; Chase FX</span>
               </div>
               <div class="btn-grid-2">
                 <button type="button" class="btn" id="btn-line-closed">Closed Loop</button>
@@ -1075,7 +1075,7 @@
             <!-- COMPOSITING & BLEND -->
             <div class="insp-card">
               <div class="insp-title emerald">
-                <span>3. Compositing &amp; Blend</span>
+                <span>Compositing &amp; Blend</span>
                 <button type="button" class="btn emerald" id="btn-feather-unlink" style="padding:1px 6px;font-size:9px;" title="Toggle Independent Left / Right / Top / Bottom Edge Feathering">4-Edge</button>
               </div>
               <div class="ctrl-row" style="grid-template-columns: 80px 1fr;">
@@ -1187,7 +1187,7 @@
             <!-- COLOR GRADING -->
             <div class="insp-card">
               <div class="insp-title">
-                <span>4. Color Grading</span>
+                <span>Color Grading</span>
                 <button type="button" class="btn" id="btn-reset-color" style="padding:1px 6px;font-size:9px;">Reset</button>
               </div>
               <div class="ctrl-row">
@@ -1240,10 +1240,11 @@
               </div>
             </div>
 
+            <button type="button" class="btn insp-more-btn" id="btn-insp-more" aria-expanded="false">More settings ▾ <span>warping, crop, shutters, outline, effects</span></button>
             <!-- INPUT UV SLICE -->
-            <div class="insp-card">
+            <div class="insp-card" data-insp-more>
               <div class="insp-title warm">
-                <span>5. Input UV Slice &amp; Crop</span>
+                <span>Input UV Slice &amp; Crop</span>
                 <button type="button" class="btn" id="btn-reset-uv" style="padding:1px 6px;font-size:9px;">Reset UV</button>
               </div>
               <div id="uv-rect-inspector" style="display:flex;flex-direction:column;gap:5px;">
@@ -1330,7 +1331,7 @@
             </div>
 
             <!-- MILESTONE 7C + P7: THEATRICAL 4-BLADE ELLIPSOIDAL FRAMING SHUTTERS -->
-            <details class="insp-card studio-disclosure" id="disc-framing-shutters">
+            <details class="insp-card studio-disclosure" data-insp-more id="disc-framing-shutters">
               <summary class="studio-disclosure-summary warm">
                 <span>Theatrical 4-Blade Framing Shutters</span>
                 <span id="badge-shutter-status" class="disc-badge">Open</span>
@@ -1390,9 +1391,9 @@
             </details>
 
             <!-- UNIVERSAL PERIMETER CHASE OUTLINE FX -->
-            <div class="insp-card" id="card-border-fx">
+            <div class="insp-card" data-insp-more id="card-border-fx">
               <div class="insp-title violet">
-                <span>6. Perimeter Chase Outline FX</span>
+                <span>Perimeter Chase Outline FX</span>
               </div>
               <div class="ctrl-row">
                 <label class="ctrl-label" for="ctrl-border-width">Outline Width</label>
@@ -1425,9 +1426,9 @@
             </div>
 
             <!-- STACKABLE PER-SURFACE GPU POST-FX RACK -->
-            <div class="insp-card" id="card-surf-fx">
+            <div class="insp-card" data-insp-more id="card-surf-fx">
               <div class="insp-title emerald">
-                <span>7. GPU Post-FX Rack</span>
+                <span>GPU Post-FX Rack</span>
                 <button type="button" class="btn" id="btn-clear-surf-fx" style="padding:1px 6px;font-size:9px;">Clear</button>
               </div>
               <div style="display:flex;gap:4px;align-items:center;">
