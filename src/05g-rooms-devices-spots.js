@@ -785,14 +785,7 @@ function setStudioRoom(nextRoom, opts = {}) {
       }
     }
   }
-  if (!opts.silent && typeof showToast === 'function' && prevRoom !== valid) {
-    const labels = {
-      build: '1 · BUILD — Physical World: Screens, Projectors, 3D Objects, Surfaces & Floorplan',
-      map: '2 · MAP — Dress objects with textures, shapes & FX · edits stay in Preview while BLIND',
-      live: '3 · LIVE — Cue Playback + Priority Deck + ◎ Orbital Mix + Spots'
-    };
-    showToast(labels[valid]);
-  }
+  if (!opts.silent && prevRoom !== valid && typeof maybeShowRoomTip === 'function') maybeShowRoomTip(valid);
   return valid;
 }
 

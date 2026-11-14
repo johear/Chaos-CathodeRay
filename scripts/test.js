@@ -2726,6 +2726,23 @@ const vmScript = `
     onRoomChangedForProgram('live', 'map');
     assert(isProgramHeld(), 'Cues + an open output: LIVE → MAP arms Blind');
     releaseProgram({ silent: true }); state.projectorMode = false;
+    // Next-step line: one tip at a time from the show; done or skipped tips never return.
+    const surfs0 = state.surfaces, cuesN = state.cues;
+    projectorWindowsMap.clear(); projectorWindow = null; projectorConnected = false; state.projectorMode = false;
+    state.tipsDone = []; state.showLock = false; state.room = 'map';
+    state.surfaces = [];
+    assert.strictEqual(getCurrentNextStep().id, 'surface', 'Empty show: tip = add a surface');
+    state.surfaces = surfs0;
+    assert.strictEqual(getCurrentNextStep().id, 'output', 'Surface but no output: tip = open the projector window');
+    markTipDone('output');
+    state.cues = [];
+    assert.strictEqual(getCurrentNextStep().id, 'cue', 'Skipped output: next tip = store a cue');
+    state.showLock = true;
+    assert.strictEqual(getCurrentNextStep(), null, 'No tips under Show Lock');
+    state.showLock = false;
+    state.cues = cuesN;
+    assert(state.tipsDone.includes('cue') || getCurrentNextStep().id !== 'cue', 'A stored cue completes the cue tip');
+    assert(serializeShowData(false).tipsDone.includes('output'), 'Done/skipped tips are saved with the show');
     for (const [k, v] of savedWins) projectorWindowsMap.set(k, v);
     projectorWindow = savedPw; projectorConnected = savedConn;
   }

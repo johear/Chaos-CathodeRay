@@ -3996,3 +3996,15 @@
     /* 0.2 Shapes lock */
     .shapes-lock-btn, .align-done-btn { padding: 2px 7px; font-size: 9.5px; white-space: nowrap; }
     .shapes-lock-btn.unlocked { color: var(--warm, #ffcb7d); border-color: rgba(255, 203, 125, 0.6); }
+    /* 0.2 Message strip: reserved line under the top bar (pushes panes down, never covers them) */
+    .message-strip { flex: 0 0 auto; height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-bottom: 1px solid var(--border-panel); background: rgba(8, 12, 20, 0.92); font-size: 11px; color: var(--text-main); overflow: hidden; }
+    .message-strip .program-banner { position: static; transform: none; box-shadow: none; padding: 2px 6px 2px 8px; max-width: none; flex: 1 1 auto; }
+    .message-strip .session-bar { position: static; transform: none; box-shadow: none; padding: 2px 6px 2px 10px; max-width: none; flex: 1 1 auto; }
+    .next-step { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; }
+    .next-step[hidden] { display: none; }
+    .next-step .ns-text { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-main); }
+    .next-step .btn { padding: 2px 8px; font-size: 10px; white-space: nowrap; }
+    .next-step .ns-skip { color: var(--text-muted); }
+    .message-strip:has(#program-banner:not([hidden])) .next-step,
+    .message-strip:has(#session-bar:not([hidden])) .next-step { display: none; }
+    .message-strip:has(#program-banner:not([hidden])) .session-bar { display: none; }

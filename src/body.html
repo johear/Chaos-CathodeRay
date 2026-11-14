@@ -58,6 +58,7 @@
             <button type="button" class="btn" id="btn-load-json" title="Load a show file (.chaos.json, .chaospack.json, or older WebMapper .json / .wmshow)">📂 Load Show…</button>
             <button type="button" class="btn danger" id="btn-start-fresh" title="Clear everything this browser remembers and start clean (offers a backup first)" style="grid-column:1 / -1;">⟲ Start fresh…</button>
             <a class="btn tester-guide-link" target="_blank" rel="noopener" title="Beta tester guide: what to try, how to report problems, known limitations" style="grid-column:1 / -1;text-decoration:none;">🧪 Beta tester guide</a>
+            <button type="button" class="btn" id="btn-tips-toggle" title="Turn the next-step tips under the top bar on or off" style="grid-column:1 / -1;">💡 Tips: on</button>
             <button type="button" class="btn" id="btn-about" title="About Chaos CathodeRay: version, copyright, licence and source code" style="grid-column:1 / -1;">ⓘ About &amp; licence</button>
             <button type="button" class="btn" id="btn-report-problem" title="Report a problem: copy a diagnostics report for the beta team" style="grid-column:1 / -1;">🐞 Report a problem…</button>
             <button type="button" class="btn emerald" id="btn-load-keep-venue" title="Touring Mode: Load Show Cues, Media &amp; FX while preserving this Venue's Warp, Rig &amp; DMX Calibration">🏛 Keep Venue…</button>
@@ -142,6 +143,29 @@
         <button type="button" class="btn" id="btn-shortcuts" aria-label="Keyboard Shortcuts (?)" title="Keyboard Shortcuts (?)">?</button>
       </div>
     </header>
+    <!-- 0.2 MESSAGE STRIP: one reserved line under the top bar. Banners and the next-step tip live
+         here, so nothing floats over the views. -->
+    <div id="message-strip" class="message-strip">
+      <div id="program-banner" class="program-banner" role="status" hidden>
+          <span class="pgm-dot" aria-hidden="true"></span>
+          <span class="pgm-msg">BLIND · stage holds Program</span>
+          <button type="button" class="btn emerald-solid" id="btn-pgm-take" title="Fade Preview onto the stage"><span class="pgm-take-lbl">TAKE 2.0 s</span></button>
+          <button type="button" class="btn" id="btn-pgm-cut" title="Cut Preview onto the stage (no fade)">Cut</button>
+          <button type="button" class="btn" id="btn-pgm-revert" title="Throw away Preview edits">↺ Revert</button>
+      </div>
+      <div id="session-bar" class="session-bar" role="status" aria-live="polite" hidden>
+    <span id="session-bar-text"></span>
+    <button type="button" class="btn emerald" id="btn-session-keep">Keep working</button>
+    <button type="button" class="btn" id="btn-session-fresh">⟲ Start fresh…</button>
+      </div>
+      <div id="next-step" class="next-step" role="status" aria-live="polite" hidden>
+        <span class="ns-icon" aria-hidden="true">💡</span>
+        <span id="next-step-text" class="ns-text"></span>
+        <button type="button" class="btn emerald" id="btn-next-step-do"></button>
+        <button type="button" class="btn ns-skip" id="btn-next-step-skip" title="Skip this tip">Skip</button>
+        <button type="button" class="icon-btn ns-hide" id="btn-next-step-hide" aria-label="Hide tips" title="Hide tips (turn them back on in the Show menu)">✕</button>
+      </div>
+    </div>
 
     <!-- =====================================================================
          MAIN 3-COLUMN STUDIO WORKSPACE
@@ -310,13 +334,6 @@
 
       <!-- CENTER WORKSPACE: SPLIT INPUT UV & OUTPUT STAGE -->
       <main id="center-workspace">
-        <div id="program-banner" class="program-banner" role="status" hidden>
-          <span class="pgm-dot" aria-hidden="true"></span>
-          <span class="pgm-msg">BLIND · stage holds Program</span>
-          <button type="button" class="btn emerald-solid" id="btn-pgm-take" title="Fade Preview onto the stage"><span class="pgm-take-lbl">TAKE 2.0 s</span></button>
-          <button type="button" class="btn" id="btn-pgm-cut" title="Cut Preview onto the stage (no fade)">Cut</button>
-          <button type="button" class="btn" id="btn-pgm-revert" title="Throw away Preview edits">↺ Revert</button>
-        </div>
         <div id="panes-area">
           <canvas id="gl-engine"></canvas>
 
@@ -2853,11 +2870,6 @@
   </dialog>
 
   <!-- 0.1 BETA: WELCOME-BACK BAR + START FRESH -->
-  <div id="session-bar" class="session-bar" role="status" aria-live="polite" hidden>
-    <span id="session-bar-text"></span>
-    <button type="button" class="btn emerald" id="btn-session-keep">Keep working</button>
-    <button type="button" class="btn" id="btn-session-fresh">⟲ Start fresh…</button>
-  </div>
   <dialog id="fresh-dialog" class="report-dialog fresh-dialog" closedby="any" aria-labelledby="fresh-dialog-title">
     <div class="context-dialog-head">
       <h2 id="fresh-dialog-title">⟲ Start fresh?</h2>
