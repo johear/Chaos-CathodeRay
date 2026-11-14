@@ -4126,6 +4126,7 @@ function bootWebMapper() {
     initScrubbyReadoutsAndDiffDots();
   }
   if (typeof initBetaModule === 'function') initBetaModule(!!restored, { pending: pendingStart, freshLaunch });
+  if (typeof initGrowthUx === 'function') initGrowthUx();
 
   requestAnimationFrame(frameLoop);
 }

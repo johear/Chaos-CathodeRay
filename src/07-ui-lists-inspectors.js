@@ -163,8 +163,8 @@ function syncStageModePill() {
   } else if ((state.selectedSurfaceIds?.length || 0) > 1) {
     pill.textContent = `⊞ Multi-Transform (${state.selectedSurfaceIds.length})`;
     pill.style.color = 'var(--emerald)';
-  } else if (state.room === 'map' && !state.liveReachThrough) {
-    pill.textContent = '🎨 Select Surface (F1 Build or Hold W to Warp)';
+  } else if (state.room === 'map' && !isGeomReach()) {
+    pill.textContent = '🔒 Select (shapes locked · Hold W to warp)';
     pill.style.color = 'var(--brand-color)';
   } else {
     const selPrimary = getSelectedSurface();

@@ -2114,7 +2114,7 @@ function venueStagePointerDown(mx, my, e) {
     }
   }
   const hits = _venueStageHits || [];
-  const canEdit = state.room === 'map' || !!state.liveReachThrough;
+  const canEdit = isGeomReach();
   // 0. Physical objects under the cursor (people, screens, projectors, lights, 3D objects).
   let objHit = null;
   if (_venueStageCam) {
@@ -2342,7 +2342,7 @@ function renderVenueStageOverlay(ctx, cssW, cssH) {
     return [((c[0] / c[3]) * 0.5 + 0.5) * cssW, (1 - ((c[1] / c[3]) * 0.5 + 0.5)) * cssH];
   };
   // Mapped 2D surfaces & masks, cast onto the venue through their projector.
-  const canEdit = state.room === 'map' || !!state.liveReachThrough;
+  const canEdit = isGeomReach();
   // LIVE is a performance view: surface outlines only while geometry reach-through (W) is armed.
   _venueStageHits = (state.room !== 'live' || state.liveReachThrough)
     ? drawVenueSurfaceOutlines(ctx, cam.mvp, cssW, cssH, { handles: canEdit, activeCorner: _venueStageDrag && _venueStageDrag.kind === 'surf-corner3d' ? _venueStageDrag : null })

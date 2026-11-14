@@ -3532,6 +3532,7 @@ function bindSpatialGridNavigation(containerEl, itemSelector) {
 
 function syncRoomUI() {
   if (typeof document === 'undefined') return;
+  if (typeof syncShapesLockUI === 'function') setTimeout(syncShapesLockUI, 0);
   ensureWorldRigSeeded();
   const room = isBuildRoom() ? 'build' : (state.room || 'map');
   state.room = room;

@@ -3993,3 +3993,6 @@
     #boot-veil.bare { background: #000; }
     #boot-veil.bare .boot-card { display: none; }
     #boot-veil.stuck .boot-bar { display: none; }
+    /* 0.2 Shapes lock */
+    .shapes-lock-btn, .align-done-btn { padding: 2px 7px; font-size: 9.5px; white-space: nowrap; }
+    .shapes-lock-btn.unlocked { color: var(--warm, #ffcb7d); border-color: rgba(255, 203, 125, 0.6); }

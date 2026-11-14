@@ -47,7 +47,7 @@ for (const m of bodyHtml.matchAll(/\bid="([^"]+)"/g)) {
 }
 
 const jsFiles = fs.readdirSync(srcDir).filter(f => /^\d+.*\.js$/.test(f)).sort();
-assert.strictEqual(jsFiles.length, 26, `Expected 26 modular JS files in src/, found ${jsFiles.length}`);
+assert.strictEqual(jsFiles.length, 27, `Expected 27 modular JS files in src/, found ${jsFiles.length}`);
 
 // Verify standalone HD H.264+AAC .mp4 demo videos exist in ./demos/ with valid ISO BMFF ftyp box
 for (const demoFile of ['demo-1-kinetic-drums-120bpm.mp4', 'demo-2-stage-beams-128bpm.mp4']) {
@@ -215,6 +215,7 @@ const engineModulesSource = [
   '05j-venue-parts.js',
   '05k-projector-align.js',
   '05l-beta-start-check.js',
+  '05m-growth-ux.js',
   '07b-ux-studio-systems.js'
 ].map(modSrc).join('\n;\n');
 
@@ -2682,8 +2683,36 @@ const vmScript = `
     const big = buildBetaReportMailto(rep + 'x'.repeat(20000));
     assert(big.truncated && big.url.length < 9000 && decodeURIComponent(big.url).includes('full report is on your clipboard'), 'Long reports are shortened for email with a paste hint');
   }
+  // ==========================================================================
+  // 22. 0.2 growth UX: Shapes lock, Blind arming, next step, blank start & kits,
+  //     show parts, empty rooms, view bar, current thing, Show Check lines.
+  // ==========================================================================
+  {
+    // Shapes lock
+    const room0 = state.room, lock0 = state.shapesLocked;
+    state.room = 'map'; state.showLock = false; state.liveReachThrough = false;
+    state.shapesLocked = true;
+    assert(!isGeomReach(), 'Locked: MAP clicks only select');
+    state.shapesLocked = false;
+    assert(isGeomReach(), 'Unlocked: corners drag in MAP');
+    state.showLock = true;
+    assert(!isGeomReach(), 'Show Lock always protects geometry');
+    state.showLock = false;
+    state.room = 'live';
+    assert(!isGeomReach(), 'LIVE stays protected even when shapes are unlocked');
+    state.liveReachThrough = true;
+    assert(isGeomReach(), 'Hold W still reaches through');
+    state.liveReachThrough = false;
+    const savedLock = serializeShowData(false);
+    assert.strictEqual(savedLock.shapesLocked, false, 'Shapes lock is saved with the show');
+    const oldShow = JSON.parse(JSON.stringify(savedLock)); delete oldShow.shapesLocked;
+    importShowJson(JSON.stringify(oldShow), true);
+    assert.strictEqual(state.shapesLocked, true, 'Older shows (no field) open locked');
+    state.room = room0; state.shapesLocked = lock0;
+  }
+  console.log('✓ [22/22] 0.2 growth UX verified');
   console.log('✓ [21/21] Chaos CathodeRay 0.1 beta: identity & compatibility, Plan/sides/Lines view model, Show Check & problem report verified');
-  console.log('\\n🎉 ALL 21/21 CHAOS CATHODERAY 0.1.0-BETA AUTOMATED SUITES PASSED (0 ERRORS)');
+  console.log('\\n🎉 ALL 22/22 CHAOS CATHODERAY AUTOMATED SUITES PASSED (0 ERRORS)');
 })().catch(err => {
   console.error('TEST FAILURE:', err);
   process.exit(1);

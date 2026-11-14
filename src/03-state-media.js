@@ -115,6 +115,7 @@ const state = {
   buildViewMode: 'split',    // 'split' | 'plan2d' | 'world3d' | 'warp'
   liveMixSolo: false,        // Expand ◎ Orbital Mix to full center width in 3 · LIVE
   outputFeedTab: 'stage',    // 'stage' | 'p1'..'p32' | 'previz3d'
+  shapesLocked: true,        // 0.2 Shapes lock: false = corners drag in MAP (05m)
   liveReachThrough: false,   // Hold W surgical geometry/shutter reach-through in 2 · MAP / 3 · LIVE
   capturedTrims: {},         // Non-blocking Live Trim Tray overrides in 3 · LIVE
   hoverGhostPreset: null,    // Hover-preview ghost rig/stage preset in 1 · BUILD

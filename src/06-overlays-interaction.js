@@ -1032,8 +1032,8 @@ function renderStageOverlay(dpr, metrics) {
   const { box } = metrics;
   const effAspect = box.w / Math.max(1, box.h);
   const liveCleanMode = state.room === 'live' && !state.liveReachThrough;
-  const reachUnlock = (state.room === 'live' || state.room === 'map') && !!state.liveReachThrough;
-  const mapSelectOnly = state.room === 'map' && !state.liveReachThrough && !state.drawingSurfaceId && !state.drawingMaskId;
+  const reachUnlock = (state.room === 'live' || state.room === 'map') && isGeomReach();
+  const mapSelectOnly = state.room === 'map' && !isGeomReach() && !state.drawingSurfaceId && !state.drawingMaskId;
   const geomUnlocked = (!state.showLock && !mapSelectOnly) || reachUnlock;
   const shutterUnlocked = !state.showLock || reachUnlock;
 
@@ -2363,8 +2363,8 @@ function nudgeSelectedTargetByDelta(dx, dy, fineGear = false) {
     return;
   }
   // 2 · MAP / 3 · LIVE never move physical geometry by accident — arrows only nudge with Hold W.
-  if ((state.room === 'map' || state.room === 'live') && !state.liveReachThrough) {
-    showToast(`📐 Geometry is protected in ${state.room === 'map' ? '2 · MAP' : '3 · LIVE'} — hold W + arrows to nudge, or edit in 1 · BUILD (F1)`);
+  if ((state.room === 'map' || state.room === 'live') && !isGeomReach()) {
+    showToast(state.room === 'map' ? '🔒 Shapes are locked — hold W + arrows to nudge, or unlock the padlock' : '📐 Geometry is protected in LIVE — hold W + arrows to nudge');
     return;
   }
   const sv = state.selectedVertex;
@@ -2642,7 +2642,7 @@ function bindViewportInteractions() {
       return;
     }
 
-    const mapSelectOnly = state.room === 'map' && !state.liveReachThrough && !state.drawingSurfaceId && !state.drawingMaskId;
+    const mapSelectOnly = state.room === 'map' && !isGeomReach() && !state.drawingSurfaceId && !state.drawingMaskId;
 
     // 1B. Active Freeform N-Gon Polygon / Architectural Line Pen Drawing Mode
     if (state.drawingSurfaceId) {
@@ -3106,7 +3106,7 @@ function bindViewportInteractions() {
 
     // 3C. Surgical reach-through (Hold W in 2 · MAP / 3 · LIVE): grabbing a corner of a surface that
     // is NOT selected selects it and starts the corner drag in the same gesture (no select-then-drag).
-    if ((state.room === 'map' || state.room === 'live') && state.liveReachThrough && !e.shiftKey) {
+    if ((state.room === 'map' || state.room === 'live') && isGeomReach() && !e.shiftKey) {
       const cur = getSelectedSurface();
       const nearPt = (s) => (s.points || []).some(p => {
         const q = stageToPx(box, p[0], p[1]);
@@ -3480,7 +3480,7 @@ function bindViewportInteractions() {
         return;
       }
       const penActive = !!(state.drawingMaskId || state.drawingSurfaceId);
-      const mapSelectOnlyHover = state.room === 'map' && !state.liveReachThrough && !penActive;
+      const mapSelectOnlyHover = state.room === 'map' && !isGeomReach() && !penActive;
       let cursor = spacePanHeld ? 'grab' : (penActive ? 'crosshair' : 'default');
       state.hoverMeshBrush = null;
       let hovPin = -1;

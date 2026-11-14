@@ -4007,6 +4007,9 @@
     #boot-veil.bare { background: #000; }
     #boot-veil.bare .boot-card { display: none; }
     #boot-veil.stuck .boot-bar { display: none; }
+    /* 0.2 Shapes lock */
+    .shapes-lock-btn, .align-done-btn { padding: 2px 7px; font-size: 9.5px; white-space: nowrap; }
+    .shapes-lock-btn.unlocked { color: var(--warm, #ffcb7d); border-color: rgba(255, 203, 125, 0.6); }
 
   </style>
 </head>
@@ -4435,6 +4438,8 @@
               </div>
               <div id="stage-feed-tabs" class="feed-tab-bar" role="tablist" aria-label="Output Feed Tabs"></div>
               <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                <button type="button" class="btn shapes-lock-btn" id="btn-shapes-lock" aria-pressed="true" hidden>🔒 Shapes locked</button>
+                <button type="button" class="btn emerald align-done-btn" id="btn-align-done" hidden title="Lock the shapes so nothing moves by accident">Alignment done ✓</button>
                 <span id="stage-coords" style="color:var(--text-muted);font-variant-numeric:tabular-nums;">X: 0.500  Y: 0.500</span>
                 <button type="button" class="btn" id="btn-stage-reset-zoom" style="padding:2px 5px;font-size:9px;">Fit</button>
                 <button type="button" class="btn pane-solo-btn" id="btn-stage-solo" aria-pressed="false" style="padding:2px 5px;font-size:9px;" title="Solo the stage / 3D venue (full width) — click again to split">⤢</button>
@@ -12215,6 +12220,7 @@ const state = {
   buildViewMode: 'split',    // 'split' | 'plan2d' | 'world3d' | 'warp'
   liveMixSolo: false,        // Expand ◎ Orbital Mix to full center width in 3 · LIVE
   outputFeedTab: 'stage',    // 'stage' | 'p1'..'p32' | 'previz3d'
+  shapesLocked: true,        // 0.2 Shapes lock: false = corners drag in MAP (05m)
   liveReachThrough: false,   // Hold W surgical geometry/shutter reach-through in 2 · MAP / 3 · LIVE
   capturedTrims: {},         // Non-blocking Live Trim Tray overrides in 3 · LIVE
   hoverGhostPreset: null,    // Hover-preview ghost rig/stage preset in 1 · BUILD
@@ -20986,6 +20992,7 @@ function serializeShowData(includeInlineImages = true) {
     worldProps: Array.isArray(state.worldProps) ? JSON.parse(JSON.stringify(state.worldProps)) : undefined,
     venueParts: Array.isArray(state.venueParts) ? JSON.parse(JSON.stringify(state.venueParts)) : undefined,
     workflow: state.workflow || undefined,
+    shapesLocked: state.shapesLocked === false ? false : true,
     programPrefs: state.program ? { takeFadeSec: state.program.takeFadeSec, autoBlind: state.program.autoBlind } : undefined,
     worldStage: state.worldStage ? { ...state.worldStage } : undefined,
     worldScreens: Array.isArray(state.worldScreens) ? JSON.parse(JSON.stringify(state.worldScreens)) : undefined,
@@ -21268,6 +21275,8 @@ function importShowJson(jsonText, isAutosave = false, opts = {}) {
     if (typeof markVenuePartsDirty === 'function') markVenuePartsDirty();
   }
   if (data.workflow) state.workflow = String(data.workflow);
+  if (!keepVenue) state.shapesLocked = data.shapesLocked === false ? false : true; // older shows: locked
+  if (typeof syncShapesLockUI === 'function') syncShapesLockUI();
   if (data.programPrefs && typeof ensureProgramState === 'function') {
     const pp = ensureProgramState();
     if (Number.isFinite(Number(data.programPrefs.takeFadeSec))) pp.takeFadeSec = Number(data.programPrefs.takeFadeSec);
@@ -36083,6 +36092,7 @@ function bindSpatialGridNavigation(containerEl, itemSelector) {
 
 function syncRoomUI() {
   if (typeof document === 'undefined') return;
+  if (typeof syncShapesLockUI === 'function') setTimeout(syncShapesLockUI, 0);
   ensureWorldRigSeeded();
   const room = isBuildRoom() ? 'build' : (state.room || 'map');
   state.room = room;
@@ -38473,7 +38483,7 @@ function venueStagePointerDown(mx, my, e) {
     }
   }
   const hits = _venueStageHits || [];
-  const canEdit = state.room === 'map' || !!state.liveReachThrough;
+  const canEdit = isGeomReach();
   // 0. Physical objects under the cursor (people, screens, projectors, lights, 3D objects).
   let objHit = null;
   if (_venueStageCam) {
@@ -38701,7 +38711,7 @@ function renderVenueStageOverlay(ctx, cssW, cssH) {
     return [((c[0] / c[3]) * 0.5 + 0.5) * cssW, (1 - ((c[1] / c[3]) * 0.5 + 0.5)) * cssH];
   };
   // Mapped 2D surfaces & masks, cast onto the venue through their projector.
-  const canEdit = state.room === 'map' || !!state.liveReachThrough;
+  const canEdit = isGeomReach();
   // LIVE is a performance view: surface outlines only while geometry reach-through (W) is armed.
   _venueStageHits = (state.room !== 'live' || state.liveReachThrough)
     ? drawVenueSurfaceOutlines(ctx, cam.mvp, cssW, cssH, { handles: canEdit, activeCorner: _venueStageDrag && _venueStageDrag.kind === 'surf-corner3d' ? _venueStageDrag : null })
@@ -42626,6 +42636,82 @@ function initBetaModule(restoredAutosave = false, opts = {}) {
 }
 
 
+// === MODULE: 05m-growth-ux.js ===
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Chaos CathodeRay — Copyright © 2026 Jonathan O'Hear. See LICENSE and NOTICE.md.
+// ============================================================================
+// 05m-growth-ux.js — 0.2 "the show grows, the screen grows with it" (VISION-0.2.md)
+//   1. Shapes lock: corners drag in MAP while unlocked; "Alignment done ✓" locks them.
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// 1. SHAPES LOCK
+// state.shapesLocked: true = MAP clicks only select (geometry protected, Hold W reaches
+// through as before); false = corners drag in MAP like in BUILD. Old shows (no field) and the
+// play / rehearsal / facade kits are locked; new blank shows start unlocked.
+// ----------------------------------------------------------------------------
+function areShapesLocked() {
+  return state.shapesLocked !== false;
+}
+
+// Geometry may be edited right now in MAP / LIVE views: Hold W always reaches through; MAP also
+// when shapes are unlocked (never under Show Lock). BUILD is always editable (not asked here).
+function isGeomReach() {
+  if (state.liveReachThrough) return true;
+  return state.room === 'map' && !areShapesLocked() && !state.showLock;
+}
+
+function setShapesLocked(locked, opts = {}) {
+  const next = !!locked;
+  if (areShapesLocked() === next) { syncShapesLockUI(); return next; }
+  state.shapesLocked = next;
+  state._sceneSyncRev = (state._sceneSyncRev || 0) + 1;
+  if (typeof scheduleAutosave === 'function') scheduleAutosave();
+  syncShapesLockUI();
+  if (typeof syncInspectorUI === 'function') syncInspectorUI();
+  if (!opts.silent && typeof showToast === 'function') {
+    showToast(next ? '🔒 Shapes locked — clicks only select. Hold W to nudge a corner, or unlock again.' : '🔓 Shapes free — drag corners onto your objects, then press Alignment done ✓');
+  }
+  return next;
+}
+
+function syncShapesLockUI() {
+  if (typeof document === 'undefined') return;
+  const btn = document.getElementById('btn-shapes-lock');
+  const done = document.getElementById('btn-align-done');
+  const inMap = state.room === 'map';
+  const locked = areShapesLocked();
+  if (btn) {
+    btn.hidden = !inMap;
+    btn.textContent = locked ? '🔒 Shapes locked' : '🔓 Shapes free';
+    btn.classList.toggle('unlocked', !locked);
+    btn.setAttribute('aria-pressed', String(locked));
+    btn.title = locked
+      ? 'Shapes are locked: clicks select only, so nothing moves by accident. Click to unlock and drag corners (or hold W for one adjustment).'
+      : 'Shapes are free: drag corners onto your objects. Click to lock them.';
+  }
+  if (done) done.hidden = !inMap || locked;
+}
+
+function initShapesLock() {
+  if (typeof document === 'undefined' || state.isProjectorRole) return;
+  document.getElementById('btn-shapes-lock')?.addEventListener('click', () => setShapesLocked(!areShapesLocked()));
+  document.getElementById('btn-align-done')?.addEventListener('click', () => {
+    setShapesLocked(true, { silent: true });
+    if (typeof showToast === 'function') showToast('✓ Alignment done — shapes locked. Unlock any time with the padlock.');
+  });
+  syncShapesLockUI();
+}
+
+// ----------------------------------------------------------------------------
+// BOOT
+// ----------------------------------------------------------------------------
+function initGrowthUx() {
+  if (state.isProjectorRole) return;
+  initShapesLock();
+}
+
+
 // === MODULE: 06-overlays-interaction.js ===
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Chaos CathodeRay — Copyright © 2026 Jonathan O'Hear. See LICENSE and NOTICE.md.
@@ -43661,8 +43747,8 @@ function renderStageOverlay(dpr, metrics) {
   const { box } = metrics;
   const effAspect = box.w / Math.max(1, box.h);
   const liveCleanMode = state.room === 'live' && !state.liveReachThrough;
-  const reachUnlock = (state.room === 'live' || state.room === 'map') && !!state.liveReachThrough;
-  const mapSelectOnly = state.room === 'map' && !state.liveReachThrough && !state.drawingSurfaceId && !state.drawingMaskId;
+  const reachUnlock = (state.room === 'live' || state.room === 'map') && isGeomReach();
+  const mapSelectOnly = state.room === 'map' && !isGeomReach() && !state.drawingSurfaceId && !state.drawingMaskId;
   const geomUnlocked = (!state.showLock && !mapSelectOnly) || reachUnlock;
   const shutterUnlocked = !state.showLock || reachUnlock;
 
@@ -44992,8 +45078,8 @@ function nudgeSelectedTargetByDelta(dx, dy, fineGear = false) {
     return;
   }
   // 2 · MAP / 3 · LIVE never move physical geometry by accident — arrows only nudge with Hold W.
-  if ((state.room === 'map' || state.room === 'live') && !state.liveReachThrough) {
-    showToast(`📐 Geometry is protected in ${state.room === 'map' ? '2 · MAP' : '3 · LIVE'} — hold W + arrows to nudge, or edit in 1 · BUILD (F1)`);
+  if ((state.room === 'map' || state.room === 'live') && !isGeomReach()) {
+    showToast(state.room === 'map' ? '🔒 Shapes are locked — hold W + arrows to nudge, or unlock the padlock' : '📐 Geometry is protected in LIVE — hold W + arrows to nudge');
     return;
   }
   const sv = state.selectedVertex;
@@ -45271,7 +45357,7 @@ function bindViewportInteractions() {
       return;
     }
 
-    const mapSelectOnly = state.room === 'map' && !state.liveReachThrough && !state.drawingSurfaceId && !state.drawingMaskId;
+    const mapSelectOnly = state.room === 'map' && !isGeomReach() && !state.drawingSurfaceId && !state.drawingMaskId;
 
     // 1B. Active Freeform N-Gon Polygon / Architectural Line Pen Drawing Mode
     if (state.drawingSurfaceId) {
@@ -45735,7 +45821,7 @@ function bindViewportInteractions() {
 
     // 3C. Surgical reach-through (Hold W in 2 · MAP / 3 · LIVE): grabbing a corner of a surface that
     // is NOT selected selects it and starts the corner drag in the same gesture (no select-then-drag).
-    if ((state.room === 'map' || state.room === 'live') && state.liveReachThrough && !e.shiftKey) {
+    if ((state.room === 'map' || state.room === 'live') && isGeomReach() && !e.shiftKey) {
       const cur = getSelectedSurface();
       const nearPt = (s) => (s.points || []).some(p => {
         const q = stageToPx(box, p[0], p[1]);
@@ -46109,7 +46195,7 @@ function bindViewportInteractions() {
         return;
       }
       const penActive = !!(state.drawingMaskId || state.drawingSurfaceId);
-      const mapSelectOnlyHover = state.room === 'map' && !state.liveReachThrough && !penActive;
+      const mapSelectOnlyHover = state.room === 'map' && !isGeomReach() && !penActive;
       let cursor = spacePanHeld ? 'grab' : (penActive ? 'crosshair' : 'default');
       state.hoverMeshBrush = null;
       let hovPin = -1;
@@ -47413,8 +47499,8 @@ function syncStageModePill() {
   } else if ((state.selectedSurfaceIds?.length || 0) > 1) {
     pill.textContent = `⊞ Multi-Transform (${state.selectedSurfaceIds.length})`;
     pill.style.color = 'var(--emerald)';
-  } else if (state.room === 'map' && !state.liveReachThrough) {
-    pill.textContent = '🎨 Select Surface (F1 Build or Hold W to Warp)';
+  } else if (state.room === 'map' && !isGeomReach()) {
+    pill.textContent = '🔒 Select (shapes locked · Hold W to warp)';
     pill.style.color = 'var(--brand-color)';
   } else {
     const selPrimary = getSelectedSurface();
@@ -57184,6 +57270,7 @@ function bootWebMapper() {
     initScrubbyReadoutsAndDiffDots();
   }
   if (typeof initBetaModule === 'function') initBetaModule(!!restored, { pending: pendingStart, freshLaunch });
+  if (typeof initGrowthUx === 'function') initGrowthUx();
 
   requestAnimationFrame(frameLoop);
 }

@@ -2057,6 +2057,7 @@ function serializeShowData(includeInlineImages = true) {
     worldProps: Array.isArray(state.worldProps) ? JSON.parse(JSON.stringify(state.worldProps)) : undefined,
     venueParts: Array.isArray(state.venueParts) ? JSON.parse(JSON.stringify(state.venueParts)) : undefined,
     workflow: state.workflow || undefined,
+    shapesLocked: state.shapesLocked === false ? false : true,
     programPrefs: state.program ? { takeFadeSec: state.program.takeFadeSec, autoBlind: state.program.autoBlind } : undefined,
     worldStage: state.worldStage ? { ...state.worldStage } : undefined,
     worldScreens: Array.isArray(state.worldScreens) ? JSON.parse(JSON.stringify(state.worldScreens)) : undefined,
@@ -2339,6 +2340,8 @@ function importShowJson(jsonText, isAutosave = false, opts = {}) {
     if (typeof markVenuePartsDirty === 'function') markVenuePartsDirty();
   }
   if (data.workflow) state.workflow = String(data.workflow);
+  if (!keepVenue) state.shapesLocked = data.shapesLocked === false ? false : true; // older shows: locked
+  if (typeof syncShapesLockUI === 'function') syncShapesLockUI();
   if (data.programPrefs && typeof ensureProgramState === 'function') {
     const pp = ensureProgramState();
     if (Number.isFinite(Number(data.programPrefs.takeFadeSec))) pp.takeFadeSec = Number(data.programPrefs.takeFadeSec);
