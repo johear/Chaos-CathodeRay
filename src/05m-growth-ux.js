@@ -5,6 +5,7 @@
 //   1. Shapes lock: corners drag in MAP while unlocked; "Alignment done ✓" locks them.
 //   2. Message strip + next-step line: the single next action, worked out from the show.
 //   3. Blank means blank: a new show has no surface, one projector, no person, no spot.
+//   4. Show parts: panels appear when the show first contains them; ＋ Add to show; Show all tools.
 // ============================================================================
 
 // ----------------------------------------------------------------------------
@@ -232,6 +233,7 @@ function newBlankShow() {
   state.workflow = null;
   state.shapesLocked = false;
   state.tipsDone = [];
+  state.showParts = [];
   state.activeSelection = null;
   if (typeof markStagePlanDirty === 'function') markStagePlanDirty();
   state._sceneSyncRev = (state._sceneSyncRev || 0) + 1;
@@ -243,6 +245,7 @@ function newBlankShow() {
   if (typeof restoreRoomFeedTab === 'function') restoreRoomFeedTab('map');
   if (typeof renderLivePerformanceDockUI === 'function') renderLivePerformanceDockUI();
   syncShapesLockUI();
+  syncShowPartsUI(true);
   syncNextStepUI(true);
   if (typeof scheduleAutosave === 'function') scheduleAutosave();
   return true;
@@ -260,10 +263,159 @@ function ensureProjectorCount(n) {
 }
 
 // ----------------------------------------------------------------------------
+// 4. SHOW PARTS
+// state.showParts: parts this show contains (array, saved). null = older show = everything on.
+// A part switches on the first time the show contains it and never switches itself off.
+// Elements carry data-part="…"; body.part-off-<name> hides them (CSS). Show all tools (this
+// browser) shows everything. Search turns a part on when a chosen tool belongs to it.
+// ----------------------------------------------------------------------------
+const SHOW_PARTS = {
+  masks: { icon: '✂', label: 'Masks and shutters', blurb: 'Cut shapes out of the light, or trim its edges with straight blades.', keywords: /mask|shutter|blade|cutout/i },
+  cues: { icon: '▶', label: 'Cues', blurb: 'Stored looks you can return to — then run them with GO in LIVE.', keywords: /\bcue|\bgo\b|playback|deck|crossfade|t-bar/i },
+  followspot: { icon: '🎯', label: 'Followspot', blurb: 'A spot of light you steer live, or that follows a performer.', keywords: /spot/i },
+  venue: { icon: '🏛', label: 'Venue in 3D', blurb: 'The real space: stage, walls, set pieces and people, in 3D.', keywords: /venue|3d|walk|pov|plan|set part|facade|elevation/i },
+  projectors: { icon: '📽', label: 'More projectors', blurb: 'A second projector: a wider or brighter picture, or another object.', keywords: /projector|blend|multi-proj/i },
+  mixer: { icon: '◎', label: 'Live mixer', blurb: 'Mix several sources live on the spatial radar.', keywords: /\bmix|radar|orb|constellation/i },
+  lights: { icon: '💡', label: 'Lights (DMX)', blurb: 'Stage lights and hazers controlled over DMX or Art-Net.', keywords: /dmx|art-?net|fixture|hazer|pjlink|led/i },
+  controllers: { icon: '🎹', label: 'Controllers', blurb: 'MIDI, OSC and gamepad controls for live performance.', keywords: /midi|osc|gamepad|controller|seat/i }
+};
+const SHOW_ALL_TOOLS_KEY = 'chaoscathode_show_all_tools';
+
+function isShowAllTools() {
+  try { return localStorage.getItem(SHOW_ALL_TOOLS_KEY) === '1'; } catch (_) { return false; }
+}
+
+// Parts the show contains right now (they switch on and stay on).
+function detectShowParts() {
+  const on = [];
+  const mp = state.multiProjector || {};
+  if ((state.masks || []).length || (state.surfaces || []).some(sf => sf && (sf.shutterL || sf.shutterR || sf.shutterT || sf.shutterB))) on.push('masks');
+  if ((state.cues || []).length) on.push('cues');
+  if ((state.spots || []).length) on.push('followspot');
+  if ((state.venueParts || []).length || (state.worldProps || []).length || (state.workflow && state.workflow !== 'quick2d')) on.push('venue');
+  if ((mp.screens || []).length > 1 || mp.enabled) on.push('projectors');
+  if (typeof isMixbusOnStage === 'function' && isMixbusOnStage()) on.push('mixer');
+  if ((state.dmxDevices || []).length) on.push('lights');
+  if ((state.midi?.mappings || []).length) on.push('controllers');
+  return on;
+}
+
+function getShowParts() {
+  if (!Array.isArray(state.showParts)) return null;
+  for (const p of detectShowParts()) if (!state.showParts.includes(p)) state.showParts.push(p);
+  return state.showParts;
+}
+
+function isShowPartOn(part) {
+  if (isShowAllTools()) return true;
+  const parts = getShowParts();
+  return !parts || parts.includes(part);
+}
+
+function enableShowParts(list, opts = {}) {
+  if (!Array.isArray(state.showParts)) return;
+  let added = false;
+  for (const p of list) if (SHOW_PARTS[p] && !state.showParts.includes(p)) { state.showParts.push(p); added = true; }
+  if (added && typeof scheduleAutosave === 'function') scheduleAutosave();
+  syncShowPartsUI(true);
+}
+
+let _showPartsSig = '';
+function syncShowPartsUI(force = false) {
+  if (typeof document === 'undefined' || !document.body) return;
+  const off = Object.keys(SHOW_PARTS).filter(p => !isShowPartOn(p));
+  const sig = off.join(',');
+  if (!force && sig === _showPartsSig) return;
+  const changed = sig !== _showPartsSig;
+  _showPartsSig = sig;
+  for (const p of Object.keys(SHOW_PARTS)) document.body.classList.toggle(`part-off-${p}`, off.includes(p));
+  renderAddToShowList();
+  if (changed) {
+    if (typeof syncOutputFeedTabsUI === 'function') syncOutputFeedTabsUI();
+    // LIVE without the mixer shows the output, not the radar.
+    if (state.room === 'live' && typeof setLayoutMode === 'function') {
+      const want = isShowPartOn('mixer') ? 'mix' : 'output';
+      if (state.layoutMode !== want && (state.layoutMode === 'mix' || state.layoutMode === 'output')) setLayoutMode(want);
+    }
+  }
+}
+
+// One-click starters: switch the part on and do its first useful step.
+function addShowPart(part) {
+  enableShowParts([part]);
+  const say = (m) => { if (typeof showToast === 'function') showToast(m); };
+  if (part === 'cues') {
+    if (!(state.cues || []).length && typeof storeNewCue === 'function') { storeNewCue(); if (typeof renderCueList === 'function') renderCueList(); say('▶ Stored this look as cue 1 — run it with GO in LIVE.'); }
+  } else if (part === 'followspot') {
+    if (!(state.spots || []).length && typeof addSpotInstance === 'function') addSpotInstance();
+    if (typeof renderLivePerformanceDockUI === 'function') renderLivePerformanceDockUI();
+    say('🎯 Followspot added — pick it up and steer it in LIVE (F3).');
+  } else if (part === 'venue') {
+    if (state.room !== 'build' && typeof setOutputFeedTab === 'function') setOutputFeedTab('venue3d');
+    say('🏛 Venue on — shape the real space in BUILD (F1); the 3D Venue view shows it.');
+  } else if (part === 'projectors') {
+    const n = (ensureMultiProjectorState().screens || []).length + 1;
+    ensureProjectorCount(n);
+    if (typeof markStagePlanDirty === 'function') markStagePlanDirty();
+    if (typeof setStudioRoom === 'function') setStudioRoom('build');
+    say(`📽 Projector ${n} added — place and aim it in BUILD, then 📐 Align by points.`);
+  } else if (part === 'mixer') {
+    say(state.room === 'live' ? '◎ Mixer on — drag sources toward the centre to mix them.' : '◎ Mixer on — open LIVE (F3) to mix sources on the radar.');
+  } else if (part === 'lights') {
+    if (typeof setStudioRoom === 'function') setStudioRoom('build');
+    say('💡 Lights on — add a DMX light with +DMX in BUILD.');
+  } else if (part === 'controllers') {
+    say('🎹 Controllers on — press MIDI, then move a control and click what it should drive.');
+  } else if (part === 'masks') {
+    say('✂ Masks on — draw one with + Mask, or trim edges with the shutters.');
+  }
+  syncNextStepUI(true);
+}
+
+function renderAddToShowList() {
+  const list = typeof document !== 'undefined' ? document.getElementById('add-part-list') : null;
+  if (!list) return;
+  const parts = getShowParts();
+  const missing = Object.entries(SHOW_PARTS).filter(([k]) => parts && !parts.includes(k));
+  list.innerHTML = missing.length
+    ? missing.map(([k, p]) => `<button type="button" class="add-part-item" data-add-part="${k}"><span class="ap-icon" aria-hidden="true">${p.icon}</span><span class="ap-text"><strong>${escapeHtml(p.label)}</strong><span>${escapeHtml(p.blurb)}</span></span></button>`).join('')
+    : '<div class="mono-dim" style="padding:6px 2px;">This show already has every part.</div>';
+  const chk = document.getElementById('chk-show-all-tools');
+  if (chk) chk.checked = isShowAllTools();
+}
+
+// Search: choosing a tool that belongs to a part that is off turns that part on.
+function enablePartsForPaletteItem(item) {
+  if (!item || !Array.isArray(state.showParts) || item.category === 'Rooms') return;
+  const text = `${item.id || ''} ${item.title || ''} ${item.keywords || ''}`;
+  const turnOn = Object.entries(SHOW_PARTS).filter(([k, p]) => !isShowPartOn(k) && p.keywords.test(text)).map(([k]) => k);
+  if (!turnOn.length) return;
+  enableShowParts(turnOn);
+  if (typeof showToast === 'function') showToast(`Turned on: ${turnOn.map(k => SHOW_PARTS[k].label).join(', ')}`);
+}
+
+function initShowParts() {
+  if (typeof document === 'undefined' || state.isProjectorRole) return;
+  document.getElementById('add-part-list')?.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-add-part]');
+    if (!b) return;
+    document.getElementById('pop-add-to-show')?.hidePopover?.();
+    addShowPart(b.dataset.addPart);
+  });
+  document.getElementById('chk-show-all-tools')?.addEventListener('change', (e) => {
+    try { if (e.target.checked) localStorage.setItem(SHOW_ALL_TOOLS_KEY, '1'); else localStorage.removeItem(SHOW_ALL_TOOLS_KEY); } catch (_) {}
+    syncShowPartsUI(true);
+  });
+  setInterval(() => syncShowPartsUI(false), 700);
+  syncShowPartsUI(true);
+}
+
+// ----------------------------------------------------------------------------
 // BOOT
 // ----------------------------------------------------------------------------
 function initGrowthUx() {
   if (state.isProjectorRole) return;
   initShapesLock();
   initNextStep();
+  initShowParts();
 }

@@ -766,7 +766,8 @@ function setStudioRoom(nextRoom, opts = {}) {
   } else if (valid === 'live') {
     restoreRoomFeedTab('live');
     // In 3 · LIVE, 'mix' displays #mix-pane (Orbital Mix + Constellation) AND #stage-pane side-by-side!
-    state.layoutMode = 'mix';
+    // A show without the mixer part shows just the output.
+    state.layoutMode = (typeof isShowPartOn !== 'function' || isShowPartOn('mixer')) ? 'mix' : 'output';
   }
 
   if (typeof setLayoutMode === 'function') {
@@ -2047,12 +2048,12 @@ function syncOutputFeedTabsUI() {
     ? (state.buildViewMode === 'warp' && state.outputFeedTab === 'stage')
     : (state.outputFeedTab === 'stage');
   html += `<button type="button" class="feed-tab-btn${isStage ? ' active' : ''}" role="tab" aria-selected="${isStage}" data-feed="stage" title="Canonical Composited Stage Output">Stage</button>`;
-  if (!isBuildRoom()) {
+  if (!isBuildRoom() && (typeof isShowPartOn !== 'function' || isShowPartOn('venue') || state.outputFeedTab === 'venue3d')) {
     const isVenue = state.outputFeedTab === 'venue3d';
     html += `<button type="button" class="feed-tab-btn venue-tab${isVenue ? ' active' : ''}" role="tab" aria-selected="${isVenue}" data-feed="venue3d" title="Walk through the venue: every projector's real output, people, lights &amp; haze in 3D">3D Venue</button>`;
   }
 
-  const showProjTabs = mp && (mp.enabled || screens.length > 1 || isBuildRoom());
+  const showProjTabs = mp && (mp.enabled || screens.length > 1);
   if (showProjTabs) {
     for (const scr of screens.slice(0, 8)) {
       const fid = `p${scr.index}`;

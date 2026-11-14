@@ -4021,3 +4021,21 @@
     .start-card-kit { cursor: default; }
     .start-card-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
     .start-card-actions .btn { padding: 2px 8px; font-size: 10px; }
+    /* 0.2 Show parts: hide what the show does not contain yet */
+    body.part-off-cues [data-part="cues"],
+    body.part-off-followspot [data-part="followspot"],
+    body.part-off-mixer [data-part="mixer"],
+    body.part-off-lights [data-part="lights"],
+    body.part-off-controllers [data-part="controllers"],
+    body.part-off-masks [data-part="masks"],
+    body.part-off-venue [data-part="venue"],
+    body.part-off-projectors [data-part="projectors"] { display: none !important; }
+    .add-part-btn { font-weight: 700; white-space: nowrap; }
+    .add-part-pop { width: min(380px, calc(100vw - 32px)); inset: 44px 200px auto auto; }
+    .add-part-list { display: flex; flex-direction: column; gap: 4px; }
+    .add-part-item { display: flex; align-items: flex-start; gap: 10px; text-align: left; padding: 7px 8px; border-radius: 6px; border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); background: rgba(255, 255, 255, 0.03); color: var(--text-main); cursor: pointer; font: inherit; }
+    .add-part-item:hover, .add-part-item:focus-visible { border-color: var(--brand-color); background: rgba(111, 211, 255, 0.08); outline: none; }
+    .add-part-item .ap-icon { font-size: 16px; width: 20px; text-align: center; }
+    .add-part-item .ap-text { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
+    .add-part-item .ap-text span { color: var(--text-muted); font-size: 10.5px; }
+    .add-part-all { margin-top: 8px; font-size: 10.5px; }

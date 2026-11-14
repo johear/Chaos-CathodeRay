@@ -4035,6 +4035,24 @@
     .start-card-kit { cursor: default; }
     .start-card-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
     .start-card-actions .btn { padding: 2px 8px; font-size: 10px; }
+    /* 0.2 Show parts: hide what the show does not contain yet */
+    body.part-off-cues [data-part="cues"],
+    body.part-off-followspot [data-part="followspot"],
+    body.part-off-mixer [data-part="mixer"],
+    body.part-off-lights [data-part="lights"],
+    body.part-off-controllers [data-part="controllers"],
+    body.part-off-masks [data-part="masks"],
+    body.part-off-venue [data-part="venue"],
+    body.part-off-projectors [data-part="projectors"] { display: none !important; }
+    .add-part-btn { font-weight: 700; white-space: nowrap; }
+    .add-part-pop { width: min(380px, calc(100vw - 32px)); inset: 44px 200px auto auto; }
+    .add-part-list { display: flex; flex-direction: column; gap: 4px; }
+    .add-part-item { display: flex; align-items: flex-start; gap: 10px; text-align: left; padding: 7px 8px; border-radius: 6px; border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); background: rgba(255, 255, 255, 0.03); color: var(--text-main); cursor: pointer; font: inherit; }
+    .add-part-item:hover, .add-part-item:focus-visible { border-color: var(--brand-color); background: rgba(111, 211, 255, 0.08); outline: none; }
+    .add-part-item .ap-icon { font-size: 16px; width: 20px; text-align: center; }
+    .add-part-item .ap-text { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
+    .add-part-item .ap-text span { color: var(--text-muted); font-size: 10.5px; }
+    .add-part-all { margin-top: 8px; font-size: 10.5px; }
 
   </style>
 </head>
@@ -4128,7 +4146,7 @@
           <button type="button" class="seg-btn active" id="btn-view-split" title="Split Input UV &amp; Stage (1)">◫ Split</button>
           <button type="button" class="seg-btn" id="btn-view-input" title="Input UV / 3D Orbit Only (2)">◧ Input</button>
           <button type="button" class="seg-btn" id="btn-view-output" title="Output Stage Only (3)">◨ Stage</button>
-          <button type="button" class="seg-btn" id="btn-view-mix" title="Spatial Mixing Radar &amp; 2D Cue Constellation (4 / V)">◎ Mix</button>
+          <button type="button" class="seg-btn" data-part="mixer" id="btn-view-mix" title="Spatial Mixing Radar &amp; 2D Cue Constellation (4 / V)">◎ Mix</button>
           <button type="button" class="seg-btn world-only" id="btn-view-rig" title="Non-Modal 2D/3D Physical Stage Rig &amp; Constant-Brightness View beside Live Stage (5)">◪ Rig</button>
         </div>
 
@@ -4151,7 +4169,7 @@
 
         <div class="divider-v map-room-only"></div>
 
-        <button type="button" class="btn live-only" id="btn-steer-spot" title="Live Trackpad Followspot Steer (` Backquote)">🎯 Spot</button>
+        <button type="button" class="btn live-only" data-part="followspot" id="btn-steer-spot" title="Live Trackpad Followspot Steer (` Backquote)">🎯 Spot</button>
         <button type="button" class="btn map-world-only" id="btn-open-scanner" aria-label="Structured-Light Space Scanner and Camera Reference" title="Scan the space with a camera (structured-light scanner)">📷</button>
         <button type="button" class="btn primary map-room-only" id="btn-open-shader-drawer" aria-label="Toggle Live ISF and GLSL Shader Studio">&lt;/&gt; GLSL</button>
         <button type="button" class="btn" id="btn-midi-learn" aria-pressed="false" aria-label="MIDI Learn" title="1-Click WebMIDI Learn Mode (Cmd/Ctrl+M)">🎹 MIDI</button>
@@ -4173,6 +4191,12 @@
       </div>
 
       <div class="topbar-group topbar-right">
+        <button type="button" class="btn add-part-btn" id="btn-add-to-show" popovertarget="pop-add-to-show" aria-label="Add to show" title="＋ Add to show: cues, followspot, venue, more projectors, mixer, lights, controllers">＋ Add</button>
+        <div id="pop-add-to-show" class="topbar-popover add-part-pop" popover="auto" aria-label="Add to show">
+          <div class="topbar-popover-title">Add to this show</div>
+          <div id="add-part-list" class="add-part-list"></div>
+          <label class="studio-check add-part-all" for="chk-show-all-tools"><input type="checkbox" id="chk-show-all-tools" /> <span>Show all tools</span></label>
+        </div>
         <button type="button" class="btn show-check-chip" id="btn-show-check" popovertarget="pop-show-check" aria-label="Show Check" title="Show Check">✓</button>
         <div id="pop-show-check" class="topbar-popover show-check-pop" popover="auto" aria-label="Show Check">
           <div class="topbar-popover-title">Show Check — before the audience notices</div>
@@ -4262,7 +4286,7 @@
             <button type="button" class="tab-btn active" id="tab-left-surfaces" role="tab" aria-selected="true" aria-controls="left-surfaces-pane">
               ▱ Surfaces (<span id="surface-count-badge">0</span>)
             </button>
-            <button type="button" class="tab-btn violet" id="tab-left-masks" role="tab" aria-selected="false" tabindex="-1" aria-controls="left-masks-pane">
+            <button type="button" class="tab-btn violet" data-part="masks" id="tab-left-masks" role="tab" aria-selected="false" tabindex="-1" aria-controls="left-masks-pane">
               ✂ Masks (<span id="mask-count-badge">0</span>)
             </button>
           </div>
@@ -4347,17 +4371,17 @@
           </div>
           <div id="xfade-progress-wrap"><div id="xfade-progress-bar"></div></div>
           <div class="panel-toolbar">
-            <button type="button" class="btn emerald-solid" id="btn-cue-go" style="font-weight:700;padding:3px 9px;" title="Fire Next Sequenced Cue — Stops at End of List (Space / ])">▶ GO</button>
-            <button type="button" class="btn" id="btn-cue-prev" aria-label="Previous Cue" title="Previous Sequenced Cue ([)">◀</button>
+            <button type="button" class="btn emerald-solid" data-part="cues" id="btn-cue-go" style="font-weight:700;padding:3px 9px;" title="Fire Next Sequenced Cue — Stops at End of List (Space / ])">▶ GO</button>
+            <button type="button" class="btn" data-part="cues" id="btn-cue-prev" aria-label="Previous Cue" title="Previous Sequenced Cue ([)">◀</button>
             <button type="button" class="btn primary" id="btn-cue-store" title="Store Sequenced Show Cue">+ Store</button>
             <button type="button" class="btn warm" id="btn-cue-store-deck" title="Store Out-of-Sequence Priority Action Cue (Fire on demand in 3 · LIVE)">+ Action</button>
             <button type="button" class="btn warm" id="btn-cue-keep-take" title="Rehearsal: keep the current live look as an out-of-sequence take to refine later in MAP">📌 Keep</button>
-            <button type="button" class="btn" id="btn-cue-update" title="Update Selected/Active Cue Snapshot (Clears Red Manual Edits)">↻ Upd</button>
-            <button type="button" class="btn" id="btn-cue-scope" aria-pressed="false" title="Cue Record Scope: 'Show' protects physical Venue calibration; 'Show+G' records geometry too">Show</button>
+            <button type="button" class="btn" data-part="cues" id="btn-cue-update" title="Update Selected/Active Cue Snapshot (Clears Red Manual Edits)">↻ Upd</button>
+            <button type="button" class="btn" data-part="cues" id="btn-cue-scope" aria-pressed="false" title="Cue Record Scope: 'Show' protects physical Venue calibration; 'Show+G' records geometry too">Show</button>
             <div style="flex:1;"></div>
-            <button type="button" class="icon-btn" id="btn-cue-del" aria-label="Delete Selected Cue">✕</button>
+            <button type="button" class="icon-btn" data-part="cues" id="btn-cue-del" aria-label="Delete Selected Cue">✕</button>
           </div>
-          <div id="cue-recall-bar" class="cue-filter-strip" aria-label="Selected Cue Selective Recall Filters and Auto-Follow">
+          <div data-part="cues" id="cue-recall-bar" class="cue-filter-strip" aria-label="Selected Cue Selective Recall Filters and Auto-Follow">
             <span class="cue-rf-prefix" title="Recall filter for the currently selected cue (cues badged G also recall Venue geometry)">Cue:</span>
             <label class="cue-chip" for="chk-cue-rf-geom" title="Selected Cue: Recall Surface Warp &amp; Stage Geometry (unchecked = Venue warp stays untouched!)"><input type="checkbox" id="chk-cue-rf-geom" checked /><span>Geom</span></label>
             <label class="cue-chip" for="chk-cue-rf-media" title="Selected Cue: Recall Media Source Assignments &amp; Generator Params"><input type="checkbox" id="chk-cue-rf-media" checked /><span>Media</span></label>
@@ -4369,7 +4393,7 @@
             <input type="number" id="inp-cue-wait" class="studio-input cue-wait-inp" min="0" max="600" step="0.5" value="4" aria-label="Cue Auto-Follow Wait Seconds" title="Hold / Wait Seconds before Auto-Follow" />
             <label class="cue-chip" for="chk-cue-retrig" title="Retrigger Video Clips from Trim In on Cue GO"><input type="checkbox" id="chk-cue-retrig" /><span>↻Vid</span></label>
           </div>
-          <div id="cue-list" class="stack-list scroller" role="listbox" aria-label="Cue Snapshots"></div>
+          <div data-part="cues" id="cue-list" class="stack-list scroller" role="listbox" aria-label="Cue Snapshots"></div>
         </section>
       </aside>
 
@@ -4769,8 +4793,8 @@
       <aside id="right-dock" aria-label="Inspector">
         <div class="tab-bar" role="tablist" aria-label="Inspector Mode">
           <button type="button" class="tab-btn active" id="tab-insp-surface" role="tab" aria-selected="true" aria-controls="insp-pane-surface">Surface</button>
-          <button type="button" class="tab-btn violet" id="tab-insp-mask" role="tab" aria-selected="false" tabindex="-1" aria-controls="insp-pane-mask">Mask</button>
-          <button type="button" class="tab-btn warm" id="tab-insp-spot" role="tab" aria-selected="false" tabindex="-1" aria-controls="insp-pane-spot">Spot</button>
+          <button type="button" class="tab-btn violet" data-part="masks" id="tab-insp-mask" role="tab" aria-selected="false" tabindex="-1" aria-controls="insp-pane-mask">Mask</button>
+          <button type="button" class="tab-btn warm" data-part="followspot" id="tab-insp-spot" role="tab" aria-selected="false" tabindex="-1" aria-controls="insp-pane-spot">Spot</button>
           <button type="button" class="tab-btn emerald" id="tab-insp-output" role="tab" aria-selected="false" tabindex="-1" aria-controls="insp-pane-output">Output</button>
           <button type="button" class="tab-btn violet" id="tab-insp-mod" role="tab" aria-selected="false" tabindex="-1" aria-controls="insp-pane-mod">Mod/IO</button>
         </div>
@@ -6245,7 +6269,7 @@
           <button type="button" class="btn" id="btn-live-release-trims" style="padding:2px 6px;font-size:9px;">Release</button>
         </div>
 
-        <div class="insp-card">
+        <div class="insp-card" data-part="cues">
           <div class="insp-title emerald">
             <span>▶ Cue Playback &amp; Priority Action Deck</span>
           </div>
@@ -6262,7 +6286,7 @@
           <div id="live-deck-cues" style="margin-top:5px;"></div>
         </div>
 
-        <div class="insp-card">
+        <div class="insp-card" data-part="followspot">
           <div class="insp-title warm">
             <span>🎯 Followspots</span>
             <button type="button" class="btn warm" id="btn-live-add-spot" style="padding:1px 6px;font-size:9px;">+ Spot</button>
@@ -6270,7 +6294,7 @@
           <div id="live-spots-rack" class="world-stack-cards"></div>
         </div>
 
-        <details class="insp-card controller-fold">
+        <details class="insp-card controller-fold" data-part="controllers">
           <summary class="insp-title">
             <span>🎮 Controllers &amp; trackpad spot</span>
           </summary>
@@ -6282,7 +6306,7 @@
           <div id="live-trackpad-bar" class="btn-row" style="margin-top:5px;"></div>
         </details>
 
-        <div class="insp-card">
+        <div class="insp-card" data-part="lights">
           <div class="insp-title emerald">
             <span>🎚 Live DMX Shutters &amp; Devices</span>
           </div>
@@ -6295,15 +6319,15 @@
            (Pinned at far right edge, never scrolls off-screen at 1440px!)
            =================================================================== -->
       <aside id="show-rail" aria-label="Live Show Playback and Master Controls">
-        <div class="rail-cue-box" title="Live &amp; Pending Cue Stack">
+        <div data-part="cues" class="rail-cue-box" title="Live &amp; Pending Cue Stack">
           <div id="rail-active-cue" class="rail-cue-live">C1</div>
           <div id="rail-pending-cue" class="rail-cue-next">NEXT: C2</div>
         </div>
 
-        <button type="button" class="rail-go-btn" id="btn-rail-go" aria-label="GO Next Cue (Space or ])" title="Fire Next Cue — Stops Safely at End of List (Space or ])">
+        <button type="button" class="rail-go-btn" data-part="cues" id="btn-rail-go" aria-label="GO Next Cue (Space or ])" title="Fire Next Cue — Stops Safely at End of List (Space or ])">
           GO
         </button>
-        <button type="button" class="rail-btn" id="btn-rail-back" aria-label="Previous Cue ([)" title="Step Back One Cue ([ or PgUp)">
+        <button type="button" class="rail-btn" data-part="cues" id="btn-rail-back" aria-label="Previous Cue ([)" title="Step Back One Cue ([ or PgUp)">
           ◀ Back
         </button>
 
@@ -21038,6 +21062,7 @@ function serializeShowData(includeInlineImages = true) {
     workflow: state.workflow || undefined,
     shapesLocked: state.shapesLocked === false ? false : true,
     tipsDone: Array.isArray(state.tipsDone) && state.tipsDone.length ? [...state.tipsDone] : undefined,
+    showParts: Array.isArray(state.showParts) ? [...state.showParts] : undefined,
     programPrefs: state.program ? { takeFadeSec: state.program.takeFadeSec, autoBlind: state.program.autoBlind } : undefined,
     worldStage: state.worldStage ? { ...state.worldStage } : undefined,
     worldScreens: Array.isArray(state.worldScreens) ? JSON.parse(JSON.stringify(state.worldScreens)) : undefined,
@@ -21322,6 +21347,8 @@ function importShowJson(jsonText, isAutosave = false, opts = {}) {
   if (data.workflow) state.workflow = String(data.workflow);
   if (!keepVenue) state.shapesLocked = data.shapesLocked === false ? false : true; // older shows: locked
   state.tipsDone = Array.isArray(data.tipsDone) ? data.tipsDone.map(String) : [];
+  state.showParts = Array.isArray(data.showParts) ? data.showParts.map(String) : null; // older shows: everything on
+  if (typeof syncShowPartsUI === 'function') syncShowPartsUI(true);
   if (typeof syncShapesLockUI === 'function') syncShapesLockUI();
   if (data.programPrefs && typeof ensureProgramState === 'function') {
     const pp = ensureProgramState();
@@ -33372,7 +33399,8 @@ function setStudioRoom(nextRoom, opts = {}) {
   } else if (valid === 'live') {
     restoreRoomFeedTab('live');
     // In 3 · LIVE, 'mix' displays #mix-pane (Orbital Mix + Constellation) AND #stage-pane side-by-side!
-    state.layoutMode = 'mix';
+    // A show without the mixer part shows just the output.
+    state.layoutMode = (typeof isShowPartOn !== 'function' || isShowPartOn('mixer')) ? 'mix' : 'output';
   }
 
   if (typeof setLayoutMode === 'function') {
@@ -34653,12 +34681,12 @@ function syncOutputFeedTabsUI() {
     ? (state.buildViewMode === 'warp' && state.outputFeedTab === 'stage')
     : (state.outputFeedTab === 'stage');
   html += `<button type="button" class="feed-tab-btn${isStage ? ' active' : ''}" role="tab" aria-selected="${isStage}" data-feed="stage" title="Canonical Composited Stage Output">Stage</button>`;
-  if (!isBuildRoom()) {
+  if (!isBuildRoom() && (typeof isShowPartOn !== 'function' || isShowPartOn('venue') || state.outputFeedTab === 'venue3d')) {
     const isVenue = state.outputFeedTab === 'venue3d';
     html += `<button type="button" class="feed-tab-btn venue-tab${isVenue ? ' active' : ''}" role="tab" aria-selected="${isVenue}" data-feed="venue3d" title="Walk through the venue: every projector's real output, people, lights &amp; haze in 3D">3D Venue</button>`;
   }
 
-  const showProjTabs = mp && (mp.enabled || screens.length > 1 || isBuildRoom());
+  const showProjTabs = mp && (mp.enabled || screens.length > 1);
   if (showProjTabs) {
     for (const scr of screens.slice(0, 8)) {
       const fid = `p${scr.index}`;
@@ -41008,6 +41036,10 @@ function applyWorkflowContext(id) {
   syncWorkflowUI();
   syncProgramPreviewUI();
   if (typeof scheduleAutosave === 'function') scheduleAutosave();
+  if (typeof enableShowParts === 'function') {
+    const kitParts = { quick2d: [], theatre: ['venue', 'followspot', 'cues'], rehearsal: ['venue', 'followspot', 'cues'], club: ['mixer'], architectural: ['venue', 'projectors'] };
+    enableShowParts(kitParts[id] || []);
+  }
   if (typeof syncShapesLockUI === 'function') syncShapesLockUI();
   if (typeof showToast === 'function') showToast(`${ctx.icon} ${ctx.label} kit added — your surfaces and cues are kept (⌘Z undoes)`);
   return true;
@@ -42730,6 +42762,7 @@ function initBetaModule(restoredAutosave = false, opts = {}) {
 //   1. Shapes lock: corners drag in MAP while unlocked; "Alignment done ✓" locks them.
 //   2. Message strip + next-step line: the single next action, worked out from the show.
 //   3. Blank means blank: a new show has no surface, one projector, no person, no spot.
+//   4. Show parts: panels appear when the show first contains them; ＋ Add to show; Show all tools.
 // ============================================================================
 
 // ----------------------------------------------------------------------------
@@ -42957,6 +42990,7 @@ function newBlankShow() {
   state.workflow = null;
   state.shapesLocked = false;
   state.tipsDone = [];
+  state.showParts = [];
   state.activeSelection = null;
   if (typeof markStagePlanDirty === 'function') markStagePlanDirty();
   state._sceneSyncRev = (state._sceneSyncRev || 0) + 1;
@@ -42968,6 +43002,7 @@ function newBlankShow() {
   if (typeof restoreRoomFeedTab === 'function') restoreRoomFeedTab('map');
   if (typeof renderLivePerformanceDockUI === 'function') renderLivePerformanceDockUI();
   syncShapesLockUI();
+  syncShowPartsUI(true);
   syncNextStepUI(true);
   if (typeof scheduleAutosave === 'function') scheduleAutosave();
   return true;
@@ -42985,12 +43020,161 @@ function ensureProjectorCount(n) {
 }
 
 // ----------------------------------------------------------------------------
+// 4. SHOW PARTS
+// state.showParts: parts this show contains (array, saved). null = older show = everything on.
+// A part switches on the first time the show contains it and never switches itself off.
+// Elements carry data-part="…"; body.part-off-<name> hides them (CSS). Show all tools (this
+// browser) shows everything. Search turns a part on when a chosen tool belongs to it.
+// ----------------------------------------------------------------------------
+const SHOW_PARTS = {
+  masks: { icon: '✂', label: 'Masks and shutters', blurb: 'Cut shapes out of the light, or trim its edges with straight blades.', keywords: /mask|shutter|blade|cutout/i },
+  cues: { icon: '▶', label: 'Cues', blurb: 'Stored looks you can return to — then run them with GO in LIVE.', keywords: /\bcue|\bgo\b|playback|deck|crossfade|t-bar/i },
+  followspot: { icon: '🎯', label: 'Followspot', blurb: 'A spot of light you steer live, or that follows a performer.', keywords: /spot/i },
+  venue: { icon: '🏛', label: 'Venue in 3D', blurb: 'The real space: stage, walls, set pieces and people, in 3D.', keywords: /venue|3d|walk|pov|plan|set part|facade|elevation/i },
+  projectors: { icon: '📽', label: 'More projectors', blurb: 'A second projector: a wider or brighter picture, or another object.', keywords: /projector|blend|multi-proj/i },
+  mixer: { icon: '◎', label: 'Live mixer', blurb: 'Mix several sources live on the spatial radar.', keywords: /\bmix|radar|orb|constellation/i },
+  lights: { icon: '💡', label: 'Lights (DMX)', blurb: 'Stage lights and hazers controlled over DMX or Art-Net.', keywords: /dmx|art-?net|fixture|hazer|pjlink|led/i },
+  controllers: { icon: '🎹', label: 'Controllers', blurb: 'MIDI, OSC and gamepad controls for live performance.', keywords: /midi|osc|gamepad|controller|seat/i }
+};
+const SHOW_ALL_TOOLS_KEY = 'chaoscathode_show_all_tools';
+
+function isShowAllTools() {
+  try { return localStorage.getItem(SHOW_ALL_TOOLS_KEY) === '1'; } catch (_) { return false; }
+}
+
+// Parts the show contains right now (they switch on and stay on).
+function detectShowParts() {
+  const on = [];
+  const mp = state.multiProjector || {};
+  if ((state.masks || []).length || (state.surfaces || []).some(sf => sf && (sf.shutterL || sf.shutterR || sf.shutterT || sf.shutterB))) on.push('masks');
+  if ((state.cues || []).length) on.push('cues');
+  if ((state.spots || []).length) on.push('followspot');
+  if ((state.venueParts || []).length || (state.worldProps || []).length || (state.workflow && state.workflow !== 'quick2d')) on.push('venue');
+  if ((mp.screens || []).length > 1 || mp.enabled) on.push('projectors');
+  if (typeof isMixbusOnStage === 'function' && isMixbusOnStage()) on.push('mixer');
+  if ((state.dmxDevices || []).length) on.push('lights');
+  if ((state.midi?.mappings || []).length) on.push('controllers');
+  return on;
+}
+
+function getShowParts() {
+  if (!Array.isArray(state.showParts)) return null;
+  for (const p of detectShowParts()) if (!state.showParts.includes(p)) state.showParts.push(p);
+  return state.showParts;
+}
+
+function isShowPartOn(part) {
+  if (isShowAllTools()) return true;
+  const parts = getShowParts();
+  return !parts || parts.includes(part);
+}
+
+function enableShowParts(list, opts = {}) {
+  if (!Array.isArray(state.showParts)) return;
+  let added = false;
+  for (const p of list) if (SHOW_PARTS[p] && !state.showParts.includes(p)) { state.showParts.push(p); added = true; }
+  if (added && typeof scheduleAutosave === 'function') scheduleAutosave();
+  syncShowPartsUI(true);
+}
+
+let _showPartsSig = '';
+function syncShowPartsUI(force = false) {
+  if (typeof document === 'undefined' || !document.body) return;
+  const off = Object.keys(SHOW_PARTS).filter(p => !isShowPartOn(p));
+  const sig = off.join(',');
+  if (!force && sig === _showPartsSig) return;
+  const changed = sig !== _showPartsSig;
+  _showPartsSig = sig;
+  for (const p of Object.keys(SHOW_PARTS)) document.body.classList.toggle(`part-off-${p}`, off.includes(p));
+  renderAddToShowList();
+  if (changed) {
+    if (typeof syncOutputFeedTabsUI === 'function') syncOutputFeedTabsUI();
+    // LIVE without the mixer shows the output, not the radar.
+    if (state.room === 'live' && typeof setLayoutMode === 'function') {
+      const want = isShowPartOn('mixer') ? 'mix' : 'output';
+      if (state.layoutMode !== want && (state.layoutMode === 'mix' || state.layoutMode === 'output')) setLayoutMode(want);
+    }
+  }
+}
+
+// One-click starters: switch the part on and do its first useful step.
+function addShowPart(part) {
+  enableShowParts([part]);
+  const say = (m) => { if (typeof showToast === 'function') showToast(m); };
+  if (part === 'cues') {
+    if (!(state.cues || []).length && typeof storeNewCue === 'function') { storeNewCue(); if (typeof renderCueList === 'function') renderCueList(); say('▶ Stored this look as cue 1 — run it with GO in LIVE.'); }
+  } else if (part === 'followspot') {
+    if (!(state.spots || []).length && typeof addSpotInstance === 'function') addSpotInstance();
+    if (typeof renderLivePerformanceDockUI === 'function') renderLivePerformanceDockUI();
+    say('🎯 Followspot added — pick it up and steer it in LIVE (F3).');
+  } else if (part === 'venue') {
+    if (state.room !== 'build' && typeof setOutputFeedTab === 'function') setOutputFeedTab('venue3d');
+    say('🏛 Venue on — shape the real space in BUILD (F1); the 3D Venue view shows it.');
+  } else if (part === 'projectors') {
+    const n = (ensureMultiProjectorState().screens || []).length + 1;
+    ensureProjectorCount(n);
+    if (typeof markStagePlanDirty === 'function') markStagePlanDirty();
+    if (typeof setStudioRoom === 'function') setStudioRoom('build');
+    say(`📽 Projector ${n} added — place and aim it in BUILD, then 📐 Align by points.`);
+  } else if (part === 'mixer') {
+    say(state.room === 'live' ? '◎ Mixer on — drag sources toward the centre to mix them.' : '◎ Mixer on — open LIVE (F3) to mix sources on the radar.');
+  } else if (part === 'lights') {
+    if (typeof setStudioRoom === 'function') setStudioRoom('build');
+    say('💡 Lights on — add a DMX light with +DMX in BUILD.');
+  } else if (part === 'controllers') {
+    say('🎹 Controllers on — press MIDI, then move a control and click what it should drive.');
+  } else if (part === 'masks') {
+    say('✂ Masks on — draw one with + Mask, or trim edges with the shutters.');
+  }
+  syncNextStepUI(true);
+}
+
+function renderAddToShowList() {
+  const list = typeof document !== 'undefined' ? document.getElementById('add-part-list') : null;
+  if (!list) return;
+  const parts = getShowParts();
+  const missing = Object.entries(SHOW_PARTS).filter(([k]) => parts && !parts.includes(k));
+  list.innerHTML = missing.length
+    ? missing.map(([k, p]) => `<button type="button" class="add-part-item" data-add-part="${k}"><span class="ap-icon" aria-hidden="true">${p.icon}</span><span class="ap-text"><strong>${escapeHtml(p.label)}</strong><span>${escapeHtml(p.blurb)}</span></span></button>`).join('')
+    : '<div class="mono-dim" style="padding:6px 2px;">This show already has every part.</div>';
+  const chk = document.getElementById('chk-show-all-tools');
+  if (chk) chk.checked = isShowAllTools();
+}
+
+// Search: choosing a tool that belongs to a part that is off turns that part on.
+function enablePartsForPaletteItem(item) {
+  if (!item || !Array.isArray(state.showParts) || item.category === 'Rooms') return;
+  const text = `${item.id || ''} ${item.title || ''} ${item.keywords || ''}`;
+  const turnOn = Object.entries(SHOW_PARTS).filter(([k, p]) => !isShowPartOn(k) && p.keywords.test(text)).map(([k]) => k);
+  if (!turnOn.length) return;
+  enableShowParts(turnOn);
+  if (typeof showToast === 'function') showToast(`Turned on: ${turnOn.map(k => SHOW_PARTS[k].label).join(', ')}`);
+}
+
+function initShowParts() {
+  if (typeof document === 'undefined' || state.isProjectorRole) return;
+  document.getElementById('add-part-list')?.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-add-part]');
+    if (!b) return;
+    document.getElementById('pop-add-to-show')?.hidePopover?.();
+    addShowPart(b.dataset.addPart);
+  });
+  document.getElementById('chk-show-all-tools')?.addEventListener('change', (e) => {
+    try { if (e.target.checked) localStorage.setItem(SHOW_ALL_TOOLS_KEY, '1'); else localStorage.removeItem(SHOW_ALL_TOOLS_KEY); } catch (_) {}
+    syncShowPartsUI(true);
+  });
+  setInterval(() => syncShowPartsUI(false), 700);
+  syncShowPartsUI(true);
+}
+
+// ----------------------------------------------------------------------------
 // BOOT
 // ----------------------------------------------------------------------------
 function initGrowthUx() {
   if (state.isProjectorRole) return;
   initShapesLock();
   initNextStep();
+  initShowParts();
 }
 
 
@@ -52922,6 +53106,7 @@ function executeCommandPaletteItem(item) {
   if (item && typeof item.run === 'function') {
     item.run();
   }
+  if (typeof enablePartsForPaletteItem === 'function') enablePartsForPaletteItem(item);
 }
 
 function openCommandPalette(initialQuery = '') {

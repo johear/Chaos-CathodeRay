@@ -2747,6 +2747,21 @@ const vmScript = `
     projectorWindow = savedPw; projectorConnected = savedConn;
 
     // Blank means blank; kits add to the show (and lock shapes for show kits).
+    // Show parts: a new show starts with none; they appear when used and never switch off.
+    newBlankShow();
+    assert(Array.isArray(state.showParts) && !isShowPartOn('cues') && !isShowPartOn('followspot') && !isShowPartOn('mixer'), 'New show: optional parts are hidden');
+    state.surfaces.push(createSurface('quad', { name: 'P' }));
+    storeNewCue();
+    assert(isShowPartOn('cues'), 'Storing a cue switches the Cues part on');
+    state.cues = [];
+    assert(isShowPartOn('cues'), 'A part never switches itself off');
+    enablePartsForPaletteItem({ id: 'spot_add', title: 'Add a followspot', category: 'Live', keywords: 'spot followspot' });
+    assert(isShowPartOn('followspot'), 'Choosing a tool in search turns its part on');
+    const withParts = serializeShowData(false);
+    assert(Array.isArray(withParts.showParts) && withParts.showParts.includes('cues'), 'Show parts are saved');
+    const oldShowP = JSON.parse(JSON.stringify(withParts)); delete oldShowP.showParts;
+    importShowJson(JSON.stringify(oldShowP), true);
+    assert(state.showParts === null && isShowPartOn('lights') && isShowPartOn('mixer'), 'Older shows open with every part on');
     newBlankShow();
     const mpB = ensureMultiProjectorState();
     assert(state.surfaces.length === 0 && mpB.screens.length === 1 && (state.spots || []).length === 0 && (state.worldProps || []).length === 0 && (state.venueParts || []).length === 0, 'New show: no surface, one projector, no spot, no person, no set parts');
@@ -2756,6 +2771,7 @@ const vmScript = `
     assert(state.surfaces.some(x => x.name === 'Kept') && state.spots.length >= 1 && state.worldProps.length >= 1 && state.shapesLocked === true, 'Theatre kit adds a person and a followspot, keeps surfaces, locks shapes');
     applyWorkflowContext('architectural');
     assert(mpB.screens.length === 2 && state.venueParts.some(pp => pp.kind === 'building'), 'Architectural kit adds a facade and a second projector');
+    assert(isShowPartOn('venue') && isShowPartOn('projectors') && isShowPartOn('followspot'), 'Kits switch on the parts they bring');
   }
   console.log('✓ [22/22] 0.2 growth UX verified');
   console.log('✓ [21/21] Chaos CathodeRay 0.1 beta: identity & compatibility, Plan/sides/Lines view model, Show Check & problem report verified');

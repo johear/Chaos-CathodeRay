@@ -573,6 +573,10 @@ function applyWorkflowContext(id) {
   syncWorkflowUI();
   syncProgramPreviewUI();
   if (typeof scheduleAutosave === 'function') scheduleAutosave();
+  if (typeof enableShowParts === 'function') {
+    const kitParts = { quick2d: [], theatre: ['venue', 'followspot', 'cues'], rehearsal: ['venue', 'followspot', 'cues'], club: ['mixer'], architectural: ['venue', 'projectors'] };
+    enableShowParts(kitParts[id] || []);
+  }
   if (typeof syncShapesLockUI === 'function') syncShapesLockUI();
   if (typeof showToast === 'function') showToast(`${ctx.icon} ${ctx.label} kit added — your surfaces and cues are kept (⌘Z undoes)`);
   return true;

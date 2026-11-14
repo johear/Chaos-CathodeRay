@@ -2019,6 +2019,7 @@ function executeCommandPaletteItem(item) {
   if (item && typeof item.run === 'function') {
     item.run();
   }
+  if (typeof enablePartsForPaletteItem === 'function') enablePartsForPaletteItem(item);
 }
 
 function openCommandPalette(initialQuery = '') {

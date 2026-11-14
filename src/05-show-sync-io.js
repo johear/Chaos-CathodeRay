@@ -2059,6 +2059,7 @@ function serializeShowData(includeInlineImages = true) {
     workflow: state.workflow || undefined,
     shapesLocked: state.shapesLocked === false ? false : true,
     tipsDone: Array.isArray(state.tipsDone) && state.tipsDone.length ? [...state.tipsDone] : undefined,
+    showParts: Array.isArray(state.showParts) ? [...state.showParts] : undefined,
     programPrefs: state.program ? { takeFadeSec: state.program.takeFadeSec, autoBlind: state.program.autoBlind } : undefined,
     worldStage: state.worldStage ? { ...state.worldStage } : undefined,
     worldScreens: Array.isArray(state.worldScreens) ? JSON.parse(JSON.stringify(state.worldScreens)) : undefined,
@@ -2343,6 +2344,8 @@ function importShowJson(jsonText, isAutosave = false, opts = {}) {
   if (data.workflow) state.workflow = String(data.workflow);
   if (!keepVenue) state.shapesLocked = data.shapesLocked === false ? false : true; // older shows: locked
   state.tipsDone = Array.isArray(data.tipsDone) ? data.tipsDone.map(String) : [];
+  state.showParts = Array.isArray(data.showParts) ? data.showParts.map(String) : null; // older shows: everything on
+  if (typeof syncShowPartsUI === 'function') syncShowPartsUI(true);
   if (typeof syncShapesLockUI === 'function') syncShapesLockUI();
   if (data.programPrefs && typeof ensureProgramState === 'function') {
     const pp = ensureProgramState();
