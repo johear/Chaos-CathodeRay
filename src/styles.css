@@ -3817,7 +3817,7 @@
       border-top: 1px solid var(--border-subtle);
     }
     .rail-program .rail-lbl { text-align: center; }
-    #app-shell[data-room="map"] .rail-program,
+    body.program-available #app-shell[data-room="map"] .rail-program,
     body.program-held .rail-program { display: flex; }
     /* GO lives in LIVE only (0.1 beta): BUILD builds, MAP dresses, LIVE runs the show. */
     #app-shell[data-room="build"] .rail-cue-box,

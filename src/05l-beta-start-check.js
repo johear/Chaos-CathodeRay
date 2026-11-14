@@ -64,6 +64,7 @@ let _showCheckLowFpsSince = 0;
 
 function isAnyOutputWindowOpen() {
   if (state.projectorMode) return true;
+  if (typeof projectorConnected !== 'undefined' && projectorConnected) return true; // remote / second-computer output
   try {
     if (typeof projectorWindowsMap !== 'undefined' && projectorWindowsMap) {
       for (const w of projectorWindowsMap.values()) if (w && !w.closed) return true;

@@ -2709,6 +2709,25 @@ const vmScript = `
     importShowJson(JSON.stringify(oldShow), true);
     assert.strictEqual(state.shapesLocked, true, 'Older shows (no field) open locked');
     state.room = room0; state.shapesLocked = lock0;
+
+    // Blind arms only with cues and an open output.
+    state.program = undefined; ensureProgramState().autoBlind = true;
+    const cues0 = state.cues;
+    state.cues = [];
+    onRoomChangedForProgram('live', 'map');
+    assert(!isProgramHeld(), 'Sketching (no cues): LIVE → MAP stays immediate');
+    state.cues = cues0.length ? cues0 : [storeNewCue()].filter(Boolean);
+    state.projectorMode = false;
+    const savedWins = [...projectorWindowsMap.entries()]; projectorWindowsMap.clear();
+    const savedPw = projectorWindow, savedConn = projectorConnected; projectorWindow = null; projectorConnected = false;
+    onRoomChangedForProgram('live', 'map');
+    assert(!isProgramHeld(), 'No output open: LIVE → MAP stays immediate');
+    state.projectorMode = true;
+    onRoomChangedForProgram('live', 'map');
+    assert(isProgramHeld(), 'Cues + an open output: LIVE → MAP arms Blind');
+    releaseProgram({ silent: true }); state.projectorMode = false;
+    for (const [k, v] of savedWins) projectorWindowsMap.set(k, v);
+    projectorWindow = savedPw; projectorConnected = savedConn;
   }
   console.log('✓ [22/22] 0.2 growth UX verified');
   console.log('✓ [21/21] Chaos CathodeRay 0.1 beta: identity & compatibility, Plan/sides/Lines view model, Show Check & problem report verified');

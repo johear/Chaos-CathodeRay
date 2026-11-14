@@ -212,6 +212,7 @@ function holdProgram(opts = {}) {
   if (p.held) return false;
   const snap = captureSceneSnapshot();
   p.held = true;
+  p.everHeld = true;
   p.snap = snap;
   p.scene = instantiateRuntimeScene(snap);
   p._sig = programLookSignature(snap);
@@ -326,9 +327,18 @@ function consumeHeldProgramForGo() {
 
 // Room transitions: LIVE → MAP holds the stage; arriving in LIVE with nothing
 // pending lets go silently (unsent edits keep the hold + banner).
+// Blind protects an audience: it arms on LIVE → MAP only when the show has cues AND an output is
+// actually open (projector window, local projector mode, or a remote output). While sketching
+// everything stays immediate. The manual Blind button works at any time.
+function shouldAutoArmBlind() {
+  const p = ensureProgramState();
+  const outputOpen = typeof isAnyOutputWindowOpen === 'function' ? isAnyOutputWindowOpen() : true;
+  return !!p.autoBlind && outputOpen && (state.cues || []).length > 0;
+}
+
 function onRoomChangedForProgram(prevRoom, nextRoom) {
   const p = ensureProgramState();
-  if (prevRoom === 'live' && nextRoom === 'map' && p.autoBlind && !p.held) {
+  if (prevRoom === 'live' && nextRoom === 'map' && !p.held && shouldAutoArmBlind()) {
     holdProgram();
   } else if (nextRoom === 'live' && p.held && !hasPendingPreviewEdits(true)) {
     releaseProgram({ silent: true });
@@ -391,6 +401,8 @@ function syncProgramPreviewUI() {
   const held = isProgramHeld();
   const pending = held && hasPendingPreviewEdits();
   document.body.classList.toggle('program-held', held);
+  // PGM / TAKE controls show up once they mean something: cues exist or Blind was used.
+  document.body.classList.toggle('program-available', held || !!p.everHeld || (state.cues || []).length > 0);
   document.body.classList.toggle('program-pending', pending);
   const blindBtn = document.getElementById('btn-rail-blind');
   if (blindBtn) {
