@@ -396,6 +396,7 @@ function enablePartsForPaletteItem(item) {
 
 function initShowParts() {
   if (typeof document === 'undefined' || state.isProjectorRole) return;
+  document.getElementById('btn-add-to-show')?.addEventListener('click', () => renderAddToShowList());
   document.getElementById('add-part-list')?.addEventListener('click', (e) => {
     const b = e.target.closest('[data-add-part]');
     if (!b) return;

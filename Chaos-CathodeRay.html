@@ -4173,7 +4173,7 @@
         <button type="button" class="btn map-world-only" id="btn-open-scanner" aria-label="Structured-Light Space Scanner and Camera Reference" title="Scan the space with a camera (structured-light scanner)">📷</button>
         <button type="button" class="btn primary map-room-only" id="btn-open-shader-drawer" aria-label="Toggle Live ISF and GLSL Shader Studio">&lt;/&gt; GLSL</button>
         <button type="button" class="btn" id="btn-midi-learn" aria-pressed="false" aria-label="MIDI Learn" title="1-Click WebMIDI Learn Mode (Cmd/Ctrl+M)">🎹 MIDI</button>
-        <button type="button" class="btn map-live-only" id="btn-toggle-timeline" aria-expanded="false" aria-controls="timeline-drawer" aria-label="Show Timeline" title="Toggle Keyframe Show Timeline Sequencer (T)">⏱ Time</button>
+        <button type="button" class="btn map-live-only" id="btn-toggle-timeline" aria-expanded="false" aria-controls="timeline-drawer" aria-label="Show Timeline" title="Keyframe show timeline (T)">⏱</button>
 
         <label class="mini-ctrl world-only" for="sel-stage-res">
           <select id="sel-stage-res" class="studio-select" aria-label="Canonical Output Resolution">
@@ -4191,7 +4191,7 @@
       </div>
 
       <div class="topbar-group topbar-right">
-        <button type="button" class="btn add-part-btn" id="btn-add-to-show" popovertarget="pop-add-to-show" aria-label="Add to show" title="＋ Add to show: cues, followspot, venue, more projectors, mixer, lights, controllers">＋ Add</button>
+        <button type="button" class="btn add-part-btn" id="btn-add-to-show" popovertarget="pop-add-to-show" aria-label="Add to show" title="Add to show: cues, followspot, venue, more projectors, mixer, lights, controllers">＋</button>
         <div id="pop-add-to-show" class="topbar-popover add-part-pop" popover="auto" aria-label="Add to show">
           <div class="topbar-popover-title">Add to this show</div>
           <div id="add-part-list" class="add-part-list"></div>
@@ -43153,6 +43153,7 @@ function enablePartsForPaletteItem(item) {
 
 function initShowParts() {
   if (typeof document === 'undefined' || state.isProjectorRole) return;
+  document.getElementById('btn-add-to-show')?.addEventListener('click', () => renderAddToShowList());
   document.getElementById('add-part-list')?.addEventListener('click', (e) => {
     const b = e.target.closest('[data-add-part]');
     if (!b) return;
