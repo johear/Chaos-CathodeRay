@@ -4,6 +4,7 @@
 // 05m-growth-ux.js — 0.2 "the show grows, the screen grows with it" (VISION-0.2.md)
 //   1. Shapes lock: corners drag in MAP while unlocked; "Alignment done ✓" locks them.
 //   2. Message strip + next-step line: the single next action, worked out from the show.
+//   3. Blank means blank: a new show has no surface, one projector, no person, no spot.
 // ============================================================================
 
 // ----------------------------------------------------------------------------
@@ -200,6 +201,62 @@ function maybeShowRoomTip(room) {
   seen[room] = (seen[room] || 0) + 1;
   try { localStorage.setItem(ROOM_TIP_KEY, JSON.stringify(seen)); } catch (_) {}
   showToast(labels[room]);
+}
+
+// ----------------------------------------------------------------------------
+// 3. BLANK MEANS BLANK
+// A new show: no surface, one projector, no person, no spot, no set parts, shapes free, Output
+// view. Things are added as the show grows (kits, ＋ Add to show). The demo keeps its full rig.
+// ----------------------------------------------------------------------------
+function newBlankShow() {
+  if (typeof loadBlankScene === 'function') loadBlankScene();
+  state.surfaces = [];
+  state.selectedSurfaceId = null;
+  state.selectedSurfaceIds = [];
+  const mp = typeof ensureMultiProjectorState === 'function' ? ensureMultiProjectorState() : null;
+  if (mp) {
+    mp.enabled = false;
+    mp.previewScreenIndex = 0;
+    if (mp.screens.length > 1) mp.screens.splice(1);
+    if (mp.screens[0]) mp.screens[0].enabled = true;
+    mp.selectedScreenIndex = mp.screens[0] ? mp.screens[0].index : 1;
+  }
+  while (Array.isArray(state.spots) && state.spots.length && typeof removeSpotById === 'function') {
+    if (removeSpotById(state.spots[0].id, { silent: true }) === false) break;
+  }
+  state.worldProps = [];
+  state._worldPropsSeeded = true;
+  state.selectedWorldPropId = null;
+  state.venueParts = [];
+  if (typeof markVenuePartsDirty === 'function') markVenuePartsDirty();
+  state.workflow = null;
+  state.shapesLocked = false;
+  state.tipsDone = [];
+  state.activeSelection = null;
+  if (typeof markStagePlanDirty === 'function') markStagePlanDirty();
+  state._sceneSyncRev = (state._sceneSyncRev || 0) + 1;
+  if (typeof setRoomDefaultFeed === 'function') { setRoomDefaultFeed('map', 'stage'); setRoomDefaultFeed('live', 'stage'); }
+  if (typeof renderSurfaceList === 'function') renderSurfaceList();
+  if (typeof syncInspectorUI === 'function') syncInspectorUI();
+  if (typeof syncWorkflowUI === 'function') syncWorkflowUI();
+  if (typeof setStudioRoom === 'function') setStudioRoom('map', { silent: true });
+  if (typeof restoreRoomFeedTab === 'function') restoreRoomFeedTab('map');
+  if (typeof renderLivePerformanceDockUI === 'function') renderLivePerformanceDockUI();
+  syncShapesLockUI();
+  syncNextStepUI(true);
+  if (typeof scheduleAutosave === 'function') scheduleAutosave();
+  return true;
+}
+
+// Kits that need more projectors add them (dormant slices; multi-projector output stays as is).
+function ensureProjectorCount(n) {
+  const mp = typeof ensureMultiProjectorState === 'function' ? ensureMultiProjectorState() : null;
+  if (!mp || typeof createProjectorScreenSlice !== 'function') return 0;
+  while (mp.screens.length < n) {
+    const idx = mp.screens.length + 1;
+    mp.screens.push(createProjectorScreenSlice(idx, { name: `Projector ${idx}` }));
+  }
+  return mp.screens.length;
 }
 
 // ----------------------------------------------------------------------------

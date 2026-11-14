@@ -4022,6 +4022,19 @@
     .message-strip:has(#program-banner:not([hidden])) .next-step,
     .message-strip:has(#session-bar:not([hidden])) .next-step { display: none; }
     .message-strip:has(#program-banner:not([hidden])) .session-bar { display: none; }
+    /* 0.2 Start screen: one main action, kits below */
+    .start-main { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; margin: 4px 0 2px; padding: 16px 18px; border-radius: 12px; border: 1px solid var(--brand-color); background: rgba(111, 211, 255, 0.10); color: var(--text-main); cursor: pointer; font: inherit; text-align: left; }
+    .start-main:hover, .start-main:focus-visible { background: rgba(111, 211, 255, 0.18); outline: none; }
+    .start-main .sm-title { font-size: 17px; font-weight: 700; color: var(--brand-color); }
+    .start-main .sm-sub { font-size: 12px; color: var(--text-muted); }
+    #start-dialog .start-q { margin-top: 16px; }
+    .start-kit-note { margin: -4px 0 8px; font-size: 11px; color: var(--text-muted); }
+    #start-dialog .start-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+    #start-dialog .start-card { min-height: 0; padding: 10px; }
+    #start-dialog .start-card-blurb { font-size: 10px; }
+    .start-card-kit { cursor: default; }
+    .start-card-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+    .start-card-actions .btn { padding: 2px 8px; font-size: 10px; }
 
   </style>
 </head>
@@ -4078,7 +4091,7 @@
           <div class="topbar-popover-title">Show File &amp; Touring</div>
           <div class="topbar-popover-grid">
             <button type="button" class="btn emerald" id="btn-start-screen" title="Start screen: pick what you are making, open the demo or a show file" style="grid-column:1 / -1;">✦ Start…</button>
-            <button type="button" class="btn emerald context-chip" id="btn-context" title="Context: pick defaults for a quick 2D map, a theatre play, a VJ set, a rehearsal or architectural mapping" style="grid-column:1 / -1;">🧭 Context…</button>
+            <button type="button" class="btn emerald context-chip" id="btn-context" title="Kits: add what a kind of show needs (quick 2D map, theatre play, VJ set, rehearsal, architectural mapping) to this show" style="grid-column:1 / -1;">🧭 Context…</button>
             <button type="button" class="btn" id="btn-demo-scene">✦ Demo Scene</button>
             <button type="button" class="btn" id="btn-new-scene">▱ Blank Stage</button>
             <button type="button" class="btn" id="btn-save-json" title="Save the show file (.chaos.json)">💾 Save Show</button>
@@ -6866,12 +6879,19 @@
       <button type="button" class="icon-btn" id="btn-start-close" aria-label="Close">✕</button>
     </div>
     <p class="start-rooms"><b>1 · BUILD</b> the real space <span aria-hidden="true">→</span> <b>2 · MAP</b> light onto it <span aria-hidden="true">→</span> <b>3 · LIVE</b> play it.</p>
-    <h3 class="start-q">What are you making?</h3>
-    <div id="start-grid" class="start-grid"></div>
+    <button type="button" class="start-main" id="btn-start-mapping">
+      <span class="sm-title">▶ Start mapping</span>
+      <span class="sm-sub">One projector, one picture. Add more whenever you need it.</span>
+    </button>
     <div class="start-row">
       <button type="button" class="btn emerald" id="btn-start-continue" hidden>↩ Continue last session</button>
-      <button type="button" class="btn" id="btn-start-demo">✦ Explore the demo show</button>
       <button type="button" class="btn" id="btn-start-open">📂 Open a show file…</button>
+      <button type="button" class="btn" id="btn-start-demo">✦ Explore the demo show</button>
+    </div>
+    <h3 class="start-q">Or begin from a kit</h3>
+    <p id="start-kit-note" class="start-kit-note"></p>
+    <div id="start-grid" class="start-grid"></div>
+    <div class="start-row">
       <a class="btn warm tester-guide-link" target="_blank" rel="noopener" title="What to try, how to report problems, known limitations">🧪 Tester guide</a>
       <label class="studio-check start-pref" for="chk-start-show"><input type="checkbox" id="chk-start-show" /> <span>Show this every time</span></label>
     </div>
@@ -6933,10 +6953,10 @@
 
   <dialog id="context-dialog" class="context-dialog" closedby="any" aria-labelledby="context-dialog-title">
     <div class="context-dialog-head">
-      <h2 id="context-dialog-title">What kind of night is it?</h2>
+      <h2 id="context-dialog-title">Add a kit to this show</h2>
       <button type="button" class="icon-btn" id="btn-context-close" aria-label="Close">✕</button>
     </div>
-    <p class="mono-dim">A context only picks defaults — venue, rig, views, edit safety, spots. Your surfaces and cues stay. One undo step.</p>
+    <p class="mono-dim">A kit adds what a kind of show needs — venue, rig, views, edit safety, followspot. Your surfaces and cues stay. One undo step.</p>
     <div id="context-grid" class="context-grid"></div>
   </dialog>
 
@@ -34239,7 +34259,7 @@ function toggleSpotEnabled(spotIdOrIdx, forceVal = undefined) {
   return sp.enabled;
 }
 
-function removeSpotById(spotIdOrIdx = null) {
+function removeSpotById(spotIdOrIdx = null, opts = {}) {
   ensureWorldRigSeeded();
   if (!Array.isArray(state.spots) || state.spots.length === 0) return false;
   let idx = -1;
@@ -34251,7 +34271,7 @@ function removeSpotById(spotIdOrIdx = null) {
     idx = clamp(state.activeSpotIndex || 0, 0, state.spots.length - 1);
   }
   if (idx < 0 || idx >= state.spots.length) return false;
-  if (typeof pushUndoCheckpoint === 'function') pushUndoCheckpoint('Delete Spotlight');
+  if (!opts.silent && typeof pushUndoCheckpoint === 'function') pushUndoCheckpoint('Delete Spotlight');
   const removed = state.spots.splice(idx, 1)[0];
   state._spotsInitialized = true;
   if (state.spots.length === 0) {
@@ -34276,7 +34296,7 @@ function removeSpotById(spotIdOrIdx = null) {
   if (typeof syncFollowspotInspectorUI === 'function') syncFollowspotInspectorUI();
   if (typeof renderSynopticStripUI === 'function') renderSynopticStripUI();
   if (typeof scheduleAutosave === 'function') scheduleAutosave();
-  if (typeof showToast === 'function') showToast(`🗑 Deleted ${removed.name || 'Spotlight'}`);
+  if (!opts.silent && typeof showToast === 'function') showToast(`🗑 Deleted ${removed.name || 'Spotlight'}`);
   return true;
 }
 
@@ -40926,7 +40946,7 @@ function aimProjectorAt(scr, pos, aim, lumens = null) {
 function applyWorkflowContext(id) {
   const ctx = WORKFLOW_CONTEXTS[id];
   if (!ctx) return false;
-  if (typeof pushUndoCheckpoint === 'function') pushUndoCheckpoint(`Context: ${ctx.label}`);
+  if (typeof pushUndoCheckpoint === 'function') pushUndoCheckpoint(`Kit: ${ctx.label}`);
   ensureWorldRigSeeded();
   const prog = ensureProgramState();
   const mp = typeof ensureMultiProjectorState === 'function' ? ensureMultiProjectorState() : state.multiProjector;
@@ -40944,7 +40964,9 @@ function applyWorkflowContext(id) {
   } else if (id === 'theatre' || id === 'rehearsal') {
     syncWorldStageDimensions(NaN, NaN, NaN, 'proscenium');
     prog.autoBlind = true;
+    state.shapesLocked = true;
     if (!(state.worldProps || []).length && typeof addWorldProp === 'function') addWorldProp('human');
+    if (!spots.length && typeof addSpotInstance === 'function') { addSpotInstance(); spots.push(...(state.spots || []).filter(s => !spots.includes(s))); }
     if (spots[0]) {
       if (spots[0].enabled === false && typeof toggleSpotEnabled === 'function') toggleSpotEnabled(spots[0].id, true);
       spots[0].converge3D = true;
@@ -40961,6 +40983,8 @@ function applyWorkflowContext(id) {
   } else if (id === 'architectural') {
     syncWorldStageDimensions(NaN, NaN, NaN, 'open_ground');
     prog.autoBlind = true;
+    state.shapesLocked = true;
+    if (typeof ensureProjectorCount === 'function') ensureProjectorCount(2);
     setSpots(false);
     if (!(state.venueParts || []).some(p => p.kind === 'building') && typeof addVenuePart === 'function') {
       addVenuePart('building', { name: 'Facade', posM: [0, 0, -12], sizeM: [16, 10, 6] });
@@ -40984,7 +41008,8 @@ function applyWorkflowContext(id) {
   syncWorkflowUI();
   syncProgramPreviewUI();
   if (typeof scheduleAutosave === 'function') scheduleAutosave();
-  if (typeof showToast === 'function') showToast(`${ctx.icon} ${ctx.label}: defaults set — your surfaces and cues are untouched (⌘Z undoes)`);
+  if (typeof syncShapesLockUI === 'function') syncShapesLockUI();
+  if (typeof showToast === 'function') showToast(`${ctx.icon} ${ctx.label} kit added — your surfaces and cues are kept (⌘Z undoes)`);
   return true;
 }
 
@@ -40992,7 +41017,7 @@ function syncWorkflowUI() {
   if (typeof document === 'undefined') return;
   const ctx = WORKFLOW_CONTEXTS[state.workflow];
   const chip = document.getElementById('btn-context');
-  if (chip) chip.textContent = ctx ? `🧭 Context: ${ctx.icon} ${ctx.label}…` : '🧭 Context…';
+  if (chip) chip.textContent = ctx ? `🧰 Kit: ${ctx.icon} ${ctx.label}…` : '🧰 Add a kit…';
   const showBtn = document.getElementById('btn-file-menu');
   if (showBtn) showBtn.textContent = ctx ? `📂 Show ${ctx.icon} ▾` : '📂 Show ▾';
   document.body.classList.toggle('wf-rehearsal', state.workflow === 'rehearsal');
@@ -42408,10 +42433,25 @@ function shouldShowStartScreen(restoredAutosave) {
   return !restoredAutosave;
 }
 
+// Kits: with a show open, each kit can be added to it (nothing cleared) or start a new show.
 function renderStartScreen(hasSession) {
   const grid = document.getElementById('start-grid');
+  const showOpen = !!hasSession && !isSessionPristine();
+  const note = document.getElementById('start-kit-note');
+  if (note) note.textContent = showOpen
+    ? 'A kit adds what that kind of show needs. Add it to the show you have, or start a new show from it.'
+    : 'A kit is a ready-made start: venue, rig, views and safety set for that kind of show.';
   if (grid && typeof WORKFLOW_CONTEXTS !== 'undefined') {
-    grid.innerHTML = Object.entries(WORKFLOW_CONTEXTS).map(([id, c]) => `
+    grid.innerHTML = Object.entries(WORKFLOW_CONTEXTS).map(([id, c]) => showOpen ? `
+      <div class="start-card start-card-kit">
+        <span class="start-card-icon" aria-hidden="true">${c.icon}</span>
+        <span class="start-card-title">${escapeHtml(c.label)}</span>
+        <span class="start-card-blurb">${escapeHtml(c.blurb)}</span>
+        <span class="start-card-actions">
+          <button type="button" class="btn emerald" data-kit-add="${id}">＋ Add to this show</button>
+          <button type="button" class="btn" data-start-ctx="${id}">New show</button>
+        </span>
+      </div>` : `
       <button type="button" class="start-card" data-start-ctx="${id}">
         <span class="start-card-icon" aria-hidden="true">${c.icon}</span>
         <span class="start-card-title">${escapeHtml(c.label)}</span>
@@ -42439,8 +42479,10 @@ function closeStartScreen() {
   if (dlg && dlg.open) dlg.close();
 }
 
+// New show from a kit: a blank show (05m newBlankShow) plus the kit.
 function startFromContext(id) {
-  if (typeof loadBlankScene === 'function') loadBlankScene();
+  if (typeof newBlankShow === 'function') newBlankShow();
+  else if (typeof loadBlankScene === 'function') loadBlankScene();
   if (typeof applyWorkflowContext === 'function') applyWorkflowContext(id);
   closeStartScreen();
   const room = START_CONTEXT_ROOMS[id] || 'map';
@@ -42572,6 +42614,7 @@ function initFreshStart(restoredAutosave, pending) {
   // Finish what was asked for before the clean reload.
   if (pending) {
     if (pending.ctx) startFromContext(pending.ctx);
+    else if (pending.blank) { closeStartScreen(); if (typeof newBlankShow === 'function') newBlankShow(); }
     else if (pending.demo) { closeStartScreen(); if (typeof setStudioRoom === 'function') setStudioRoom('map'); showToast('✦ Demo show — F1 BUILD the space · F2 MAP the light · F3 LIVE to play it'); }
     else openStartScreen({ hasSession: false });
   }
@@ -42582,6 +42625,12 @@ function initStartScreen(restoredAutosave) {
   const dlg = document.getElementById('start-dialog');
   if (!dlg) return;
   dlg.addEventListener('click', (e) => {
+    const add = e.target.closest('[data-kit-add]');
+    if (add) {
+      closeStartScreen();
+      if (typeof applyWorkflowContext === 'function') applyWorkflowContext(add.dataset.kitAdd);
+      return;
+    }
     const card = e.target.closest('[data-start-ctx]');
     if (card) {
       const id = card.dataset.startCtx;
@@ -42593,6 +42642,11 @@ function initStartScreen(restoredAutosave) {
   });
   dlg.addEventListener('cancel', () => closeStartScreen());
   document.getElementById('btn-start-close')?.addEventListener('click', closeStartScreen);
+  document.getElementById('btn-start-mapping')?.addEventListener('click', () => {
+    if (!isSessionPristine()) { closeStartScreen(); openFreshDialog({ blank: true }); return; }
+    closeStartScreen();
+    if (typeof newBlankShow === 'function') newBlankShow();
+  });
   document.getElementById('btn-start-continue')?.addEventListener('click', closeStartScreen);
   document.getElementById('btn-start-demo')?.addEventListener('click', () => {
     if (!isSessionPristine()) { closeStartScreen(); openFreshDialog({ demo: true }); return; }
@@ -42675,6 +42729,7 @@ function initBetaModule(restoredAutosave = false, opts = {}) {
 // 05m-growth-ux.js — 0.2 "the show grows, the screen grows with it" (VISION-0.2.md)
 //   1. Shapes lock: corners drag in MAP while unlocked; "Alignment done ✓" locks them.
 //   2. Message strip + next-step line: the single next action, worked out from the show.
+//   3. Blank means blank: a new show has no surface, one projector, no person, no spot.
 // ============================================================================
 
 // ----------------------------------------------------------------------------
@@ -42871,6 +42926,62 @@ function maybeShowRoomTip(room) {
   seen[room] = (seen[room] || 0) + 1;
   try { localStorage.setItem(ROOM_TIP_KEY, JSON.stringify(seen)); } catch (_) {}
   showToast(labels[room]);
+}
+
+// ----------------------------------------------------------------------------
+// 3. BLANK MEANS BLANK
+// A new show: no surface, one projector, no person, no spot, no set parts, shapes free, Output
+// view. Things are added as the show grows (kits, ＋ Add to show). The demo keeps its full rig.
+// ----------------------------------------------------------------------------
+function newBlankShow() {
+  if (typeof loadBlankScene === 'function') loadBlankScene();
+  state.surfaces = [];
+  state.selectedSurfaceId = null;
+  state.selectedSurfaceIds = [];
+  const mp = typeof ensureMultiProjectorState === 'function' ? ensureMultiProjectorState() : null;
+  if (mp) {
+    mp.enabled = false;
+    mp.previewScreenIndex = 0;
+    if (mp.screens.length > 1) mp.screens.splice(1);
+    if (mp.screens[0]) mp.screens[0].enabled = true;
+    mp.selectedScreenIndex = mp.screens[0] ? mp.screens[0].index : 1;
+  }
+  while (Array.isArray(state.spots) && state.spots.length && typeof removeSpotById === 'function') {
+    if (removeSpotById(state.spots[0].id, { silent: true }) === false) break;
+  }
+  state.worldProps = [];
+  state._worldPropsSeeded = true;
+  state.selectedWorldPropId = null;
+  state.venueParts = [];
+  if (typeof markVenuePartsDirty === 'function') markVenuePartsDirty();
+  state.workflow = null;
+  state.shapesLocked = false;
+  state.tipsDone = [];
+  state.activeSelection = null;
+  if (typeof markStagePlanDirty === 'function') markStagePlanDirty();
+  state._sceneSyncRev = (state._sceneSyncRev || 0) + 1;
+  if (typeof setRoomDefaultFeed === 'function') { setRoomDefaultFeed('map', 'stage'); setRoomDefaultFeed('live', 'stage'); }
+  if (typeof renderSurfaceList === 'function') renderSurfaceList();
+  if (typeof syncInspectorUI === 'function') syncInspectorUI();
+  if (typeof syncWorkflowUI === 'function') syncWorkflowUI();
+  if (typeof setStudioRoom === 'function') setStudioRoom('map', { silent: true });
+  if (typeof restoreRoomFeedTab === 'function') restoreRoomFeedTab('map');
+  if (typeof renderLivePerformanceDockUI === 'function') renderLivePerformanceDockUI();
+  syncShapesLockUI();
+  syncNextStepUI(true);
+  if (typeof scheduleAutosave === 'function') scheduleAutosave();
+  return true;
+}
+
+// Kits that need more projectors add them (dormant slices; multi-projector output stays as is).
+function ensureProjectorCount(n) {
+  const mp = typeof ensureMultiProjectorState === 'function' ? ensureMultiProjectorState() : null;
+  if (!mp || typeof createProjectorScreenSlice !== 'function') return 0;
+  while (mp.screens.length < n) {
+    const idx = mp.screens.length + 1;
+    mp.screens.push(createProjectorScreenSlice(idx, { name: `Projector ${idx}` }));
+  }
+  return mp.screens.length;
 }
 
 // ----------------------------------------------------------------------------

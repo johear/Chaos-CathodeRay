@@ -2745,6 +2745,17 @@ const vmScript = `
     assert(serializeShowData(false).tipsDone.includes('output'), 'Done/skipped tips are saved with the show');
     for (const [k, v] of savedWins) projectorWindowsMap.set(k, v);
     projectorWindow = savedPw; projectorConnected = savedConn;
+
+    // Blank means blank; kits add to the show (and lock shapes for show kits).
+    newBlankShow();
+    const mpB = ensureMultiProjectorState();
+    assert(state.surfaces.length === 0 && mpB.screens.length === 1 && (state.spots || []).length === 0 && (state.worldProps || []).length === 0 && (state.venueParts || []).length === 0, 'New show: no surface, one projector, no spot, no person, no set parts');
+    assert(state.shapesLocked === false && state.room === 'map', 'New show: shapes free, in MAP');
+    const sq = createSurface('quad', { name: 'Kept' }); state.surfaces.push(sq);
+    applyWorkflowContext('theatre');
+    assert(state.surfaces.some(x => x.name === 'Kept') && state.spots.length >= 1 && state.worldProps.length >= 1 && state.shapesLocked === true, 'Theatre kit adds a person and a followspot, keeps surfaces, locks shapes');
+    applyWorkflowContext('architectural');
+    assert(mpB.screens.length === 2 && state.venueParts.some(pp => pp.kind === 'building'), 'Architectural kit adds a facade and a second projector');
   }
   console.log('✓ [22/22] 0.2 growth UX verified');
   console.log('✓ [21/21] Chaos CathodeRay 0.1 beta: identity & compatibility, Plan/sides/Lines view model, Show Check & problem report verified');

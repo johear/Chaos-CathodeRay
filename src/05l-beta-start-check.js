@@ -407,10 +407,25 @@ function shouldShowStartScreen(restoredAutosave) {
   return !restoredAutosave;
 }
 
+// Kits: with a show open, each kit can be added to it (nothing cleared) or start a new show.
 function renderStartScreen(hasSession) {
   const grid = document.getElementById('start-grid');
+  const showOpen = !!hasSession && !isSessionPristine();
+  const note = document.getElementById('start-kit-note');
+  if (note) note.textContent = showOpen
+    ? 'A kit adds what that kind of show needs. Add it to the show you have, or start a new show from it.'
+    : 'A kit is a ready-made start: venue, rig, views and safety set for that kind of show.';
   if (grid && typeof WORKFLOW_CONTEXTS !== 'undefined') {
-    grid.innerHTML = Object.entries(WORKFLOW_CONTEXTS).map(([id, c]) => `
+    grid.innerHTML = Object.entries(WORKFLOW_CONTEXTS).map(([id, c]) => showOpen ? `
+      <div class="start-card start-card-kit">
+        <span class="start-card-icon" aria-hidden="true">${c.icon}</span>
+        <span class="start-card-title">${escapeHtml(c.label)}</span>
+        <span class="start-card-blurb">${escapeHtml(c.blurb)}</span>
+        <span class="start-card-actions">
+          <button type="button" class="btn emerald" data-kit-add="${id}">＋ Add to this show</button>
+          <button type="button" class="btn" data-start-ctx="${id}">New show</button>
+        </span>
+      </div>` : `
       <button type="button" class="start-card" data-start-ctx="${id}">
         <span class="start-card-icon" aria-hidden="true">${c.icon}</span>
         <span class="start-card-title">${escapeHtml(c.label)}</span>
@@ -438,8 +453,10 @@ function closeStartScreen() {
   if (dlg && dlg.open) dlg.close();
 }
 
+// New show from a kit: a blank show (05m newBlankShow) plus the kit.
 function startFromContext(id) {
-  if (typeof loadBlankScene === 'function') loadBlankScene();
+  if (typeof newBlankShow === 'function') newBlankShow();
+  else if (typeof loadBlankScene === 'function') loadBlankScene();
   if (typeof applyWorkflowContext === 'function') applyWorkflowContext(id);
   closeStartScreen();
   const room = START_CONTEXT_ROOMS[id] || 'map';
@@ -571,6 +588,7 @@ function initFreshStart(restoredAutosave, pending) {
   // Finish what was asked for before the clean reload.
   if (pending) {
     if (pending.ctx) startFromContext(pending.ctx);
+    else if (pending.blank) { closeStartScreen(); if (typeof newBlankShow === 'function') newBlankShow(); }
     else if (pending.demo) { closeStartScreen(); if (typeof setStudioRoom === 'function') setStudioRoom('map'); showToast('✦ Demo show — F1 BUILD the space · F2 MAP the light · F3 LIVE to play it'); }
     else openStartScreen({ hasSession: false });
   }
@@ -581,6 +599,12 @@ function initStartScreen(restoredAutosave) {
   const dlg = document.getElementById('start-dialog');
   if (!dlg) return;
   dlg.addEventListener('click', (e) => {
+    const add = e.target.closest('[data-kit-add]');
+    if (add) {
+      closeStartScreen();
+      if (typeof applyWorkflowContext === 'function') applyWorkflowContext(add.dataset.kitAdd);
+      return;
+    }
     const card = e.target.closest('[data-start-ctx]');
     if (card) {
       const id = card.dataset.startCtx;
@@ -592,6 +616,11 @@ function initStartScreen(restoredAutosave) {
   });
   dlg.addEventListener('cancel', () => closeStartScreen());
   document.getElementById('btn-start-close')?.addEventListener('click', closeStartScreen);
+  document.getElementById('btn-start-mapping')?.addEventListener('click', () => {
+    if (!isSessionPristine()) { closeStartScreen(); openFreshDialog({ blank: true }); return; }
+    closeStartScreen();
+    if (typeof newBlankShow === 'function') newBlankShow();
+  });
   document.getElementById('btn-start-continue')?.addEventListener('click', closeStartScreen);
   document.getElementById('btn-start-demo')?.addEventListener('click', () => {
     if (!isSessionPristine()) { closeStartScreen(); openFreshDialog({ demo: true }); return; }

@@ -511,7 +511,7 @@ function aimProjectorAt(scr, pos, aim, lumens = null) {
 function applyWorkflowContext(id) {
   const ctx = WORKFLOW_CONTEXTS[id];
   if (!ctx) return false;
-  if (typeof pushUndoCheckpoint === 'function') pushUndoCheckpoint(`Context: ${ctx.label}`);
+  if (typeof pushUndoCheckpoint === 'function') pushUndoCheckpoint(`Kit: ${ctx.label}`);
   ensureWorldRigSeeded();
   const prog = ensureProgramState();
   const mp = typeof ensureMultiProjectorState === 'function' ? ensureMultiProjectorState() : state.multiProjector;
@@ -529,7 +529,9 @@ function applyWorkflowContext(id) {
   } else if (id === 'theatre' || id === 'rehearsal') {
     syncWorldStageDimensions(NaN, NaN, NaN, 'proscenium');
     prog.autoBlind = true;
+    state.shapesLocked = true;
     if (!(state.worldProps || []).length && typeof addWorldProp === 'function') addWorldProp('human');
+    if (!spots.length && typeof addSpotInstance === 'function') { addSpotInstance(); spots.push(...(state.spots || []).filter(s => !spots.includes(s))); }
     if (spots[0]) {
       if (spots[0].enabled === false && typeof toggleSpotEnabled === 'function') toggleSpotEnabled(spots[0].id, true);
       spots[0].converge3D = true;
@@ -546,6 +548,8 @@ function applyWorkflowContext(id) {
   } else if (id === 'architectural') {
     syncWorldStageDimensions(NaN, NaN, NaN, 'open_ground');
     prog.autoBlind = true;
+    state.shapesLocked = true;
+    if (typeof ensureProjectorCount === 'function') ensureProjectorCount(2);
     setSpots(false);
     if (!(state.venueParts || []).some(p => p.kind === 'building') && typeof addVenuePart === 'function') {
       addVenuePart('building', { name: 'Facade', posM: [0, 0, -12], sizeM: [16, 10, 6] });
@@ -569,7 +573,8 @@ function applyWorkflowContext(id) {
   syncWorkflowUI();
   syncProgramPreviewUI();
   if (typeof scheduleAutosave === 'function') scheduleAutosave();
-  if (typeof showToast === 'function') showToast(`${ctx.icon} ${ctx.label}: defaults set — your surfaces and cues are untouched (⌘Z undoes)`);
+  if (typeof syncShapesLockUI === 'function') syncShapesLockUI();
+  if (typeof showToast === 'function') showToast(`${ctx.icon} ${ctx.label} kit added — your surfaces and cues are kept (⌘Z undoes)`);
   return true;
 }
 
@@ -577,7 +582,7 @@ function syncWorkflowUI() {
   if (typeof document === 'undefined') return;
   const ctx = WORKFLOW_CONTEXTS[state.workflow];
   const chip = document.getElementById('btn-context');
-  if (chip) chip.textContent = ctx ? `🧭 Context: ${ctx.icon} ${ctx.label}…` : '🧭 Context…';
+  if (chip) chip.textContent = ctx ? `🧰 Kit: ${ctx.icon} ${ctx.label}…` : '🧰 Add a kit…';
   const showBtn = document.getElementById('btn-file-menu');
   if (showBtn) showBtn.textContent = ctx ? `📂 Show ${ctx.icon} ▾` : '📂 Show ▾';
   document.body.classList.toggle('wf-rehearsal', state.workflow === 'rehearsal');

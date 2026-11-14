@@ -1653,7 +1653,7 @@ function toggleSpotEnabled(spotIdOrIdx, forceVal = undefined) {
   return sp.enabled;
 }
 
-function removeSpotById(spotIdOrIdx = null) {
+function removeSpotById(spotIdOrIdx = null, opts = {}) {
   ensureWorldRigSeeded();
   if (!Array.isArray(state.spots) || state.spots.length === 0) return false;
   let idx = -1;
@@ -1665,7 +1665,7 @@ function removeSpotById(spotIdOrIdx = null) {
     idx = clamp(state.activeSpotIndex || 0, 0, state.spots.length - 1);
   }
   if (idx < 0 || idx >= state.spots.length) return false;
-  if (typeof pushUndoCheckpoint === 'function') pushUndoCheckpoint('Delete Spotlight');
+  if (!opts.silent && typeof pushUndoCheckpoint === 'function') pushUndoCheckpoint('Delete Spotlight');
   const removed = state.spots.splice(idx, 1)[0];
   state._spotsInitialized = true;
   if (state.spots.length === 0) {
@@ -1690,7 +1690,7 @@ function removeSpotById(spotIdOrIdx = null) {
   if (typeof syncFollowspotInspectorUI === 'function') syncFollowspotInspectorUI();
   if (typeof renderSynopticStripUI === 'function') renderSynopticStripUI();
   if (typeof scheduleAutosave === 'function') scheduleAutosave();
-  if (typeof showToast === 'function') showToast(`🗑 Deleted ${removed.name || 'Spotlight'}`);
+  if (!opts.silent && typeof showToast === 'function') showToast(`🗑 Deleted ${removed.name || 'Spotlight'}`);
   return true;
 }
 
