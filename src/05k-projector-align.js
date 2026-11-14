@@ -174,6 +174,7 @@ function endProjectorPointAlign(keep = true) {
   const pa = state.projAlign;
   if (!pa || !pa.active) return;
   const scr = getAlignProjector();
+  if (scr && keep && (pa.pins || []).length >= 4) scr.aligned = true; // Show Check: aligned by points
   if (scr && !keep) {
     scr.posM = [...pa.orig.posM];
     scr.aimM = [...pa.orig.aimM];

@@ -7,6 +7,7 @@
 //   3. Blank means blank: a new show has no surface, one projector, no person, no spot.
 //   4. Show parts: panels appear when the show first contains them; ＋ Add to show; Show all tools.
 //   5. The current thing: selection carries between rooms and is never stale.
+//   6. Video guard while Blind (video transport isn't held yet).
 // ============================================================================
 
 // ----------------------------------------------------------------------------
@@ -512,6 +513,26 @@ function isSelectionAlive(sel) {
 
 function validateActiveSelection() {
   if (!isSelectionAlive(state.activeSelection) && typeof setActiveSelection === 'function') setActiveSelection(null, null, '');
+}
+
+// ----------------------------------------------------------------------------
+// 6. VIDEO GUARD WHILE BLIND
+// Blind holds generators, effects and looks, but not video playback. While Blind, playing, pausing
+// or seeking a video that is on stage asks first; a yes counts for a minute.
+// ----------------------------------------------------------------------------
+function isSourceOnStage(src) {
+  if (!src) return false;
+  return (state.surfaces || []).some(s => s && s.visible !== false && s.sourceId === src.id);
+}
+
+function guardVideoInBlind(src, ask = (msg) => (typeof window !== 'undefined' && typeof window.confirm === 'function' ? window.confirm(msg) : true)) {
+  if (!src || src.kind !== 'video') return true;
+  if (typeof isProgramHeld !== 'function' || !isProgramHeld() || !isSourceOnStage(src)) return true;
+  const now = Date.now();
+  if (src._blindVideoOkUntil && now < src._blindVideoOkUntil) return true;
+  const ok = !!ask(`"${src.name || 'This video'}" is on stage. Blind holds looks and effects, but not video playback: the audience will see this. Do it anyway?`);
+  if (ok) src._blindVideoOkUntil = now + 60000;
+  return ok;
 }
 
 // ----------------------------------------------------------------------------

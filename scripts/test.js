@@ -2789,6 +2789,25 @@ const vmScript = `
     setActiveSelection('surface', 'gone_123', 'Gone');
     validateActiveSelection();
     assert(!state.activeSelection.kind, 'A selection whose thing is gone is cleared');
+    // Video guard while Blind, and the new Show Check lines.
+    const vid = { id: 'vid_t', kind: 'video', name: 'Clip' };
+    state.sources.push(vid);
+    const vs = createSurface('quad', { name: 'On stage', sourceId: 'vid_t' }); state.surfaces.push(vs);
+    state.program = undefined; ensureProgramState();
+    let asked = 0;
+    assert(guardVideoInBlind(vid, () => { asked++; return false; }) && asked === 0, 'Not Blind: video controls never ask');
+    holdProgram({ silent: true });
+    assert(!guardVideoInBlind(vid, () => { asked++; return false; }) && asked === 1, 'Blind + video on stage: asks, and No stops it');
+    assert(guardVideoInBlind(vid, () => true) && guardVideoInBlind(vid, () => false), 'A Yes counts for a minute');
+    releaseProgram({ silent: true });
+    state.surfaces = state.surfaces.filter(x => x !== vs); state.sources = state.sources.filter(x => x !== vid);
+    state.projectorMode = true; state.shapesLocked = false;
+    assert(collectShowCheckItems().some(i => i.id === 'shapes'), 'Show Check: shapes unlocked with the output on');
+    state.projectorMode = false; state.shapesLocked = true;
+    assert(collectShowCheckItems().some(i => i.id === 'align-2'), 'Show Check: projector 2 not aligned yet');
+    const off = createSurface('quad', { name: 'Lost', points: [[1.2, 1.2], [1.4, 1.2], [1.4, 1.4], [1.2, 1.4]] }); state.surfaces.push(off);
+    assert(collectShowCheckItems().some(i => i.id === 'outside-' + off.id), 'Show Check: a surface outside the projector picture');
+    state.surfaces = state.surfaces.filter(x => x !== off);
   }
   console.log('✓ [22/22] 0.2 growth UX verified');
   console.log('✓ [21/21] Chaos CathodeRay 0.1 beta: identity & compatibility, Plan/sides/Lines view model, Show Check & problem report verified');

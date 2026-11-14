@@ -9,13 +9,15 @@ Thank you for testing! Chaos CathodeRay is a projection-mapping and show-control
 ## 1. Start in two minutes
 
 1. Use **Chrome or Edge on a desktop or laptop**. Firefox and Safari work for mapping, but not for multi-screen output, MIDI or USB-DMX.
-2. The **Start screen** asks *What are you making?* Pick the card closest to your idea, or choose **Explore the demo show** or **Open a show file**:
+2. On the **Start screen**, press **▶ Start mapping**: one projector, one picture. You can also **Open a show file** or **Explore the demo show**.
+3. Follow the **💡 tip line** under the top bar: it always shows the next step, with a button that does it, for example **＋ Quad**, **Open output**, **Alignment done ✓**, **Store cue** or **Go to LIVE**.
+4. **The show grows with you.** Panels appear when your show first needs them: cues once you store one, the followspot once you add one, and so on. The **＋** button in the top bar lists what you can add next. **Show all tools** inside it shows everything at once.
+5. **Kits** are ready-made starts for a kind of show, and you can also add one to the show you already have:
    - **Quick 2D map:** a wall, a window or a box.
    - **Theatre play:** a set, a performer and a followspot.
    - **VJ set / club:** live mixing.
    - **Rehearsal:** keep what worked during a run-through.
-   - **Architectural mapping:** a building facade.
-3. Follow the hint that appears at the bottom of the screen.
+   - **Architectural mapping:** a building facade with two projectors.
 
 ## 2. The three rooms (F1 · F2 · F3)
 
@@ -25,16 +27,24 @@ Thank you for testing! Chaos CathodeRay is a projection-mapping and show-control
 | **F2** | **MAP** | Put light onto things: drop media, drag corners onto objects, add FX, store cues. |
 | **F3** | **LIVE** | Run the show: **GO** through cues, mix, run followspots. |
 
-**GO only exists in LIVE.** If you switch from LIVE to MAP during a show, your edits are **Blind**: the audience keeps seeing the old look until you press **TAKE**, which fades your changes in.
+**Shapes lock.** In MAP, the padlock in the Output view's title bar shows whether corners can move:
+- **🔓 Shapes free:** drag corners straight onto your objects. This is how a new show starts.
+- **🔒 Shapes locked:** clicks only select. Press **Alignment done ✓** to lock them; hold **W** to nudge one corner anyway.
+
+Kits for plays, rehearsals and facades start locked.
+
+**GO only exists in LIVE.** Once your show has cues and an output is open, switching from LIVE to MAP makes your edits **Blind**: the audience keeps seeing the old look until you press **TAKE**, which fades your changes in. While you're still sketching, every edit shows immediately.
 
 ## 3. Finding your way
 
 - **The view bar** is the same in every 3D view:
   - **▦ Plan**, **⟲ 3D**, **🚶 Walk** and **📽 POV** (look through a projector);
-  - six sides, **Top … Right**;
+  - the six sides in the **Side ▾** menu;
   - **✎ Lines / ☀ Light**. Lines gives a measured drawing; Light gives the rendered result.
 - **Search anything:** press **/** (or ⌘K / Ctrl+K) and type what you're looking for, e.g. "shutter", "blackout" or "calibrate".
 - **All shortcuts:** press **?**.
+- **Output** is the flat picture each projector sends; **3D Venue** is the real space.
+- **More settings** at the bottom of the surface panel unfolds warping, crop, shutters, outline and effects.
 - **The ✓ / ⚠ chip** in the top right is the **Show Check**. It lists what would go wrong in front of an audience (dark stage, missing media, unsaved changes…), each with a **Fix** button.
 
 ## 4. Your work, and starting fresh

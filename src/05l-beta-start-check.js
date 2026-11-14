@@ -113,6 +113,30 @@ function collectShowCheckItems() {
   if (_showCheckLowFpsSince && now - _showCheckLowFpsSince > 4000 && state.renderQuality !== 'fast' && !browserCapped) {
     add('warn', 'fps', `Frame rate is low (${fps} FPS)`, 'Fast quality', () => { state.renderQuality = 'fast'; if (typeof showToast === 'function') showToast('Render quality: FAST (click the FPS badge to change)'); });
   }
+  // 0.2 lines
+  const outputOpenNow = isAnyOutputWindowOpen();
+  if (outputOpenNow && typeof areShapesLocked === 'function' && !areShapesLocked()) {
+    add('warn', 'shapes', 'Shapes are unlocked while the output is on — a stray click in MAP can move a corner', 'Lock',
+      () => { if (typeof setShapesLocked === 'function') setShapesLocked(true); });
+  }
+  for (const scr of (state.multiProjector?.screens || []).slice(1)) {
+    if (!scr || scr.enabled === false || scr.aligned) continue;
+    add('info', `align-${scr.index}`, `Projector P${scr.index} isn't aligned yet`, 'Align by points',
+      () => { if (typeof setStudioRoom === 'function') setStudioRoom('build'); if (typeof beginProjectorPointAlign === 'function') beginProjectorPointAlign(scr.index); });
+  }
+  const mixSrc = typeof getMixbusSource === 'function' ? getMixbusSource() : null;
+  if (mixSrc && (typeof isShowPartOn !== 'function' || (Array.isArray(state.showParts) && isShowPartOn('mixer'))) && typeof isMixbusOnStage === 'function' && !isMixbusOnStage()) {
+    add('info', 'mix', "The live mix isn't shown on any surface", 'Use the mix',
+      () => { const sel = typeof getSelectedSurface === 'function' ? getSelectedSurface() : null; if (typeof routeMixbusToSurfaceSelection === 'function') routeMixbusToSurfaceSelection(!sel); });
+  }
+  for (const sf of state.surfaces || []) {
+    if (!sf || sf.visible === false || sf.type === 'mesh3d' || !Array.isArray(sf.points) || !sf.points.length) continue;
+    const xs = sf.points.map(p => p[0]), ys = sf.points.map(p => p[1]);
+    if (Math.max(...xs) < 0 || Math.min(...xs) > 1 || Math.max(...ys) < 0 || Math.min(...ys) > 1) {
+      add('warn', `outside-${sf.id}`, `"${sf.name}" is outside the projector picture`, 'Select',
+        () => { if (typeof setStudioRoom === 'function') setStudioRoom('map'); if (typeof selectSurface === 'function') selectSurface(sf.id); if (typeof setActiveSelection === 'function') setActiveSelection('surface', sf.id, sf.name); });
+    }
+  }
   const capFps = typeof getBrowserFrameRateCap === 'function' ? getBrowserFrameRateCap() : 0;
   if (capFps) {
     add(isAnyOutputWindowOpen() ? 'warn' : 'info', 'fpscap', `Frame rate is held at ${capFps} fps (lower quality wouldn't help) — usually battery saving. Plug in, or turn off Energy Saver in Chrome Settings → Performance.`, 'How?',

@@ -3013,6 +3013,7 @@ function bindAllControls() {
   document.getElementById('btn-vid-play').addEventListener('click', () => {
     const src = getSourceById(state.activeSourceId);
     if (!src || src.kind !== 'video' || src.offline) return;
+    if (typeof guardVideoInBlind === 'function' && !guardVideoInBlind(src)) return;
     src.playing = !src.playing;
     if (src.playing) {
       const dur = src.video.duration || 0;
@@ -3035,6 +3036,7 @@ function bindAllControls() {
   document.getElementById('btn-vid-restart').addEventListener('click', () => {
     const src = getSourceById(state.activeSourceId);
     if (!src || src.kind !== 'video' || src.offline) return;
+    if (typeof guardVideoInBlind === 'function' && !guardVideoInBlind(src)) return;
     const dur = src.video.duration || 0;
     src.pingPongDir = 1;
     src.video.currentTime = (src.trimIn ?? 0) * dur;
@@ -3049,18 +3051,31 @@ function bindAllControls() {
     if (state.inspTab === 'mod' && typeof syncModIoInspectorUI === 'function') syncModIoInspectorUI();
   });
   document.getElementById('btn-vid-prev-frame').addEventListener('click', () => {
-    stepVideoFrame(getSourceById(state.activeSourceId), -1);
+    const src = getSourceById(state.activeSourceId);
+    if (typeof guardVideoInBlind === 'function' && !guardVideoInBlind(src)) return;
+    stepVideoFrame(src, -1);
   });
   document.getElementById('btn-vid-next-frame').addEventListener('click', () => {
-    stepVideoFrame(getSourceById(state.activeSourceId), 1);
+    const src = getSourceById(state.activeSourceId);
+    if (typeof guardVideoInBlind === 'function' && !guardVideoInBlind(src)) return;
+    stepVideoFrame(src, 1);
   });
   const scrubEl = document.getElementById('ctrl-vid-scrub');
   let userScrubbing = false;
-  scrubEl.addEventListener('pointerdown', () => { userScrubbing = true; });
+  let scrubBlocked = false;
+  scrubEl.addEventListener('pointerdown', (e) => {
+    userScrubbing = true;
+    scrubBlocked = typeof guardVideoInBlind === 'function' && !guardVideoInBlind(getSourceById(state.activeSourceId));
+    if (scrubBlocked) e.preventDefault();
+  });
   window.addEventListener('pointerup', () => { userScrubbing = false; });
   scrubEl.addEventListener('input', () => {
     const src = getSourceById(state.activeSourceId);
     if (!src || src.kind !== 'video' || !src.video || !src.video.duration) return;
+    if (scrubBlocked || (typeof guardVideoInBlind === 'function' && !guardVideoInBlind(src))) {
+      setSliderValue(scrubEl, src.video.currentTime / src.video.duration);
+      return;
+    }
     const t = parseFloat(scrubEl.value);
     setSliderValue(scrubEl, t);
     src.video.currentTime = t * src.video.duration;

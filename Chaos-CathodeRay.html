@@ -41797,6 +41797,7 @@ function endProjectorPointAlign(keep = true) {
   const pa = state.projAlign;
   if (!pa || !pa.active) return;
   const scr = getAlignProjector();
+  if (scr && keep && (pa.pins || []).length >= 4) scr.aligned = true; // Show Check: aligned by points
   if (scr && !keep) {
     scr.posM = [...pa.orig.posM];
     scr.aimM = [...pa.orig.aimM];
@@ -42201,6 +42202,30 @@ function collectShowCheckItems() {
   const browserCapped = typeof getBrowserFrameRateCap === 'function' && getBrowserFrameRateCap() > 0;
   if (_showCheckLowFpsSince && now - _showCheckLowFpsSince > 4000 && state.renderQuality !== 'fast' && !browserCapped) {
     add('warn', 'fps', `Frame rate is low (${fps} FPS)`, 'Fast quality', () => { state.renderQuality = 'fast'; if (typeof showToast === 'function') showToast('Render quality: FAST (click the FPS badge to change)'); });
+  }
+  // 0.2 lines
+  const outputOpenNow = isAnyOutputWindowOpen();
+  if (outputOpenNow && typeof areShapesLocked === 'function' && !areShapesLocked()) {
+    add('warn', 'shapes', 'Shapes are unlocked while the output is on — a stray click in MAP can move a corner', 'Lock',
+      () => { if (typeof setShapesLocked === 'function') setShapesLocked(true); });
+  }
+  for (const scr of (state.multiProjector?.screens || []).slice(1)) {
+    if (!scr || scr.enabled === false || scr.aligned) continue;
+    add('info', `align-${scr.index}`, `Projector P${scr.index} isn't aligned yet`, 'Align by points',
+      () => { if (typeof setStudioRoom === 'function') setStudioRoom('build'); if (typeof beginProjectorPointAlign === 'function') beginProjectorPointAlign(scr.index); });
+  }
+  const mixSrc = typeof getMixbusSource === 'function' ? getMixbusSource() : null;
+  if (mixSrc && (typeof isShowPartOn !== 'function' || (Array.isArray(state.showParts) && isShowPartOn('mixer'))) && typeof isMixbusOnStage === 'function' && !isMixbusOnStage()) {
+    add('info', 'mix', "The live mix isn't shown on any surface", 'Use the mix',
+      () => { const sel = typeof getSelectedSurface === 'function' ? getSelectedSurface() : null; if (typeof routeMixbusToSurfaceSelection === 'function') routeMixbusToSurfaceSelection(!sel); });
+  }
+  for (const sf of state.surfaces || []) {
+    if (!sf || sf.visible === false || sf.type === 'mesh3d' || !Array.isArray(sf.points) || !sf.points.length) continue;
+    const xs = sf.points.map(p => p[0]), ys = sf.points.map(p => p[1]);
+    if (Math.max(...xs) < 0 || Math.min(...xs) > 1 || Math.max(...ys) < 0 || Math.min(...ys) > 1) {
+      add('warn', `outside-${sf.id}`, `"${sf.name}" is outside the projector picture`, 'Select',
+        () => { if (typeof setStudioRoom === 'function') setStudioRoom('map'); if (typeof selectSurface === 'function') selectSurface(sf.id); if (typeof setActiveSelection === 'function') setActiveSelection('surface', sf.id, sf.name); });
+    }
   }
   const capFps = typeof getBrowserFrameRateCap === 'function' ? getBrowserFrameRateCap() : 0;
   if (capFps) {
@@ -42795,6 +42820,7 @@ function initBetaModule(restoredAutosave = false, opts = {}) {
 //   3. Blank means blank: a new show has no surface, one projector, no person, no spot.
 //   4. Show parts: panels appear when the show first contains them; ＋ Add to show; Show all tools.
 //   5. The current thing: selection carries between rooms and is never stale.
+//   6. Video guard while Blind (video transport isn't held yet).
 // ============================================================================
 
 // ----------------------------------------------------------------------------
@@ -43300,6 +43326,26 @@ function isSelectionAlive(sel) {
 
 function validateActiveSelection() {
   if (!isSelectionAlive(state.activeSelection) && typeof setActiveSelection === 'function') setActiveSelection(null, null, '');
+}
+
+// ----------------------------------------------------------------------------
+// 6. VIDEO GUARD WHILE BLIND
+// Blind holds generators, effects and looks, but not video playback. While Blind, playing, pausing
+// or seeking a video that is on stage asks first; a yes counts for a minute.
+// ----------------------------------------------------------------------------
+function isSourceOnStage(src) {
+  if (!src) return false;
+  return (state.surfaces || []).some(s => s && s.visible !== false && s.sourceId === src.id);
+}
+
+function guardVideoInBlind(src, ask = (msg) => (typeof window !== 'undefined' && typeof window.confirm === 'function' ? window.confirm(msg) : true)) {
+  if (!src || src.kind !== 'video') return true;
+  if (typeof isProgramHeld !== 'function' || !isProgramHeld() || !isSourceOnStage(src)) return true;
+  const now = Date.now();
+  if (src._blindVideoOkUntil && now < src._blindVideoOkUntil) return true;
+  const ok = !!ask(`"${src.name || 'This video'}" is on stage. Blind holds looks and effects, but not video playback: the audience will see this. Do it anyway?`);
+  if (ok) src._blindVideoOkUntil = now + 60000;
+  return ok;
 }
 
 // ----------------------------------------------------------------------------
@@ -56759,6 +56805,7 @@ function bindAllControls() {
   document.getElementById('btn-vid-play').addEventListener('click', () => {
     const src = getSourceById(state.activeSourceId);
     if (!src || src.kind !== 'video' || src.offline) return;
+    if (typeof guardVideoInBlind === 'function' && !guardVideoInBlind(src)) return;
     src.playing = !src.playing;
     if (src.playing) {
       const dur = src.video.duration || 0;
@@ -56781,6 +56828,7 @@ function bindAllControls() {
   document.getElementById('btn-vid-restart').addEventListener('click', () => {
     const src = getSourceById(state.activeSourceId);
     if (!src || src.kind !== 'video' || src.offline) return;
+    if (typeof guardVideoInBlind === 'function' && !guardVideoInBlind(src)) return;
     const dur = src.video.duration || 0;
     src.pingPongDir = 1;
     src.video.currentTime = (src.trimIn ?? 0) * dur;
@@ -56795,18 +56843,31 @@ function bindAllControls() {
     if (state.inspTab === 'mod' && typeof syncModIoInspectorUI === 'function') syncModIoInspectorUI();
   });
   document.getElementById('btn-vid-prev-frame').addEventListener('click', () => {
-    stepVideoFrame(getSourceById(state.activeSourceId), -1);
+    const src = getSourceById(state.activeSourceId);
+    if (typeof guardVideoInBlind === 'function' && !guardVideoInBlind(src)) return;
+    stepVideoFrame(src, -1);
   });
   document.getElementById('btn-vid-next-frame').addEventListener('click', () => {
-    stepVideoFrame(getSourceById(state.activeSourceId), 1);
+    const src = getSourceById(state.activeSourceId);
+    if (typeof guardVideoInBlind === 'function' && !guardVideoInBlind(src)) return;
+    stepVideoFrame(src, 1);
   });
   const scrubEl = document.getElementById('ctrl-vid-scrub');
   let userScrubbing = false;
-  scrubEl.addEventListener('pointerdown', () => { userScrubbing = true; });
+  let scrubBlocked = false;
+  scrubEl.addEventListener('pointerdown', (e) => {
+    userScrubbing = true;
+    scrubBlocked = typeof guardVideoInBlind === 'function' && !guardVideoInBlind(getSourceById(state.activeSourceId));
+    if (scrubBlocked) e.preventDefault();
+  });
   window.addEventListener('pointerup', () => { userScrubbing = false; });
   scrubEl.addEventListener('input', () => {
     const src = getSourceById(state.activeSourceId);
     if (!src || src.kind !== 'video' || !src.video || !src.video.duration) return;
+    if (scrubBlocked || (typeof guardVideoInBlind === 'function' && !guardVideoInBlind(src))) {
+      setSliderValue(scrubEl, src.video.currentTime / src.video.duration);
+      return;
+    }
     const t = parseFloat(scrubEl.value);
     setSliderValue(scrubEl, t);
     src.video.currentTime = t * src.video.duration;

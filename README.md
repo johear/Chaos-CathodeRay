@@ -56,7 +56,7 @@ Every view of the space has the same view bar:
 
 1. Open **[the online version](https://www.jonathan.ohear.com/Chaos/CathodeRay/Chaos-CathodeRay.html)**, or download **`Chaos-CathodeRay.html`** and double-click it.
 2. Use desktop **Chrome or Edge** for everything. Firefox and Safari run the mapping, but not multi-screen placement, MIDI or USB-DMX.
-3. The **Start screen** asks what you are making. Pick a starting point, or explore the demo show.
+3. Press **▶ Start mapping** on the Start screen, then follow the 💡 tip line. Panels appear as your show grows, and **＋** in the top bar lists what you can add next. Kits give a ready-made start for a theatre play, a VJ set, a rehearsal or a facade.
 
 **Beta testers:** please read the **[beta tester guide](./TESTERS.md)**. It covers what to try and how to report a problem in one click.
 
