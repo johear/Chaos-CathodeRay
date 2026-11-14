@@ -4053,6 +4053,12 @@
     .add-part-item .ap-text { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
     .add-part-item .ap-text span { color: var(--text-muted); font-size: 10.5px; }
     .add-part-all { margin-top: 8px; font-size: 10.5px; }
+    /* 0.2 Empty rooms invite */
+    .invite-card { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0 0 8px; padding: 12px; border-radius: 10px; border: 1px dashed rgba(111, 211, 255, 0.45); background: rgba(111, 211, 255, 0.05); font-size: 11px; color: var(--text-muted); line-height: 1.45; }
+    .invite-card[hidden] { display: none; }
+    .invite-card strong { color: var(--text-main); font-size: 12px; }
+    .live-invites { display: flex; flex-direction: column; }
+    .live-invites[hidden] { display: none; }
 
   </style>
 </head>
@@ -4238,6 +4244,11 @@
     <div id="studio-body">
       <!-- ROOM 1 (1 · BUILD): LEFT WORLD BUILDER OUTLINER & GHOSTRIG LAUNCHPADS -->
       <aside id="world-left-dock" class="world-dock-panel scroller" hidden aria-label="World Builder Presets and Physical Outliner">
+        <div id="build-flat-card" class="invite-card" hidden>
+          <strong>Your show is flat</strong>
+          <span>One projector pointing at things. That's all a simple mapping needs. When the room matters (a performer, a set, a facade, more projectors), add the venue.</span>
+          <button type="button" class="btn emerald" id="btn-add-venue">🏛 Add the venue</button>
+        </div>
         <div class="insp-card">
           <div class="insp-title emerald">
             <span>✦ Rig Launchpads</span>
@@ -6227,14 +6238,14 @@
           </div>
         </div>
 
-        <div class="insp-card">
+        <div class="insp-card" data-part="lights">
           <div class="insp-title">
             <span>📡 PJLink Ethernet Projectors (TCP 4352)</span>
           </div>
           <div id="world-pjlink-list" class="world-stack-cards"></div>
         </div>
 
-        <div class="insp-card">
+        <div class="insp-card" data-part="lights">
           <div class="insp-title warm">
             <span>🎛 DMX Shutters &amp; .wmdevice.json Patch</span>
           </div>
@@ -6263,6 +6274,7 @@
 
       <!-- ROOM 3 (3 · LIVE): RIGHT SIMULTANEOUS PERFORMANCE CONSOLE (CUE PLAYBACK, ACTION DECK, SEATS, SPOTS & DMX) -->
       <aside id="live-right-dock" class="live-dock-panel scroller" hidden aria-label="Live Cue Transport, Priority Action Deck, Controller Seats, Optical Spots, and DMX Fader Bank">
+        <div id="live-invites" class="live-invites" hidden></div>
         <div id="live-captured-tray" class="captured-trim-tray" hidden>
           <span class="captured-pill">● CAPTURED (<span id="live-captured-count">0</span>)</span>
           <button type="button" class="btn emerald" id="btn-live-update-cue" style="padding:2px 6px;font-size:9px;">Update Cue</button>
@@ -43087,6 +43099,7 @@ function syncShowPartsUI(force = false) {
   _showPartsSig = sig;
   for (const p of Object.keys(SHOW_PARTS)) document.body.classList.toggle(`part-off-${p}`, off.includes(p));
   renderAddToShowList();
+  renderRoomInvites();
   if (changed) {
     if (typeof syncOutputFeedTabsUI === 'function') syncOutputFeedTabsUI();
     // LIVE without the mixer shows the output, not the radar.
@@ -43151,9 +43164,40 @@ function enablePartsForPaletteItem(item) {
   if (typeof showToast === 'function') showToast(`Turned on: ${turnOn.map(k => SHOW_PARTS[k].label).join(', ')}`);
 }
 
+// Empty rooms invite: LIVE offers the next performance parts; BUILD says the show is flat.
+const LIVE_INVITES = [
+  { part: 'cues', icon: '▶', title: 'Store it as cue 1', text: 'Your show has one look. Store it, build more looks in MAP, then GO through them here.', label: 'Store cue 1' },
+  { part: 'followspot', icon: '🎯', title: 'Add a followspot', text: 'A spot of light you steer live, or that follows a performer.', label: 'Add a followspot' },
+  { part: 'mixer', icon: '◎', title: 'Mix sources live', text: 'Blend several videos and generators by hand on the spatial radar.', label: 'Mix live' }
+];
+
+function renderRoomInvites() {
+  if (typeof document === 'undefined') return;
+  const live = document.getElementById('live-invites');
+  if (live) {
+    const cards = LIVE_INVITES.filter(c => !isShowPartOn(c.part));
+    live.hidden = !cards.length;
+    const sig = cards.map(c => c.part).join(',');
+    if (live.dataset.sig !== sig) {
+      live.dataset.sig = sig;
+      live.innerHTML = cards.map(c => `<div class="invite-card"><strong>${c.icon} ${escapeHtml(c.title)}</strong><span>${escapeHtml(c.text)}</span><button type="button" class="btn emerald" data-add-part="${c.part}">${escapeHtml(c.label)}</button></div>`).join('');
+    }
+  }
+  const flat = document.getElementById('build-flat-card');
+  if (flat) flat.hidden = isShowPartOn('venue');
+}
+
 function initShowParts() {
   if (typeof document === 'undefined' || state.isProjectorRole) return;
   document.getElementById('btn-add-to-show')?.addEventListener('click', () => renderAddToShowList());
+  document.getElementById('live-invites')?.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-add-part]');
+    if (!b) return;
+    const part = b.dataset.addPart;
+    addShowPart(part);
+    if (part === 'mixer' && state.room === 'live' && typeof setLayoutMode === 'function') setLayoutMode('mix');
+  });
+  document.getElementById('btn-add-venue')?.addEventListener('click', () => addShowPart('venue'));
   document.getElementById('add-part-list')?.addEventListener('click', (e) => {
     const b = e.target.closest('[data-add-part]');
     if (!b) return;

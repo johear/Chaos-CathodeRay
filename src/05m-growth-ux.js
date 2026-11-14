@@ -330,6 +330,7 @@ function syncShowPartsUI(force = false) {
   _showPartsSig = sig;
   for (const p of Object.keys(SHOW_PARTS)) document.body.classList.toggle(`part-off-${p}`, off.includes(p));
   renderAddToShowList();
+  renderRoomInvites();
   if (changed) {
     if (typeof syncOutputFeedTabsUI === 'function') syncOutputFeedTabsUI();
     // LIVE without the mixer shows the output, not the radar.
@@ -394,9 +395,40 @@ function enablePartsForPaletteItem(item) {
   if (typeof showToast === 'function') showToast(`Turned on: ${turnOn.map(k => SHOW_PARTS[k].label).join(', ')}`);
 }
 
+// Empty rooms invite: LIVE offers the next performance parts; BUILD says the show is flat.
+const LIVE_INVITES = [
+  { part: 'cues', icon: '▶', title: 'Store it as cue 1', text: 'Your show has one look. Store it, build more looks in MAP, then GO through them here.', label: 'Store cue 1' },
+  { part: 'followspot', icon: '🎯', title: 'Add a followspot', text: 'A spot of light you steer live, or that follows a performer.', label: 'Add a followspot' },
+  { part: 'mixer', icon: '◎', title: 'Mix sources live', text: 'Blend several videos and generators by hand on the spatial radar.', label: 'Mix live' }
+];
+
+function renderRoomInvites() {
+  if (typeof document === 'undefined') return;
+  const live = document.getElementById('live-invites');
+  if (live) {
+    const cards = LIVE_INVITES.filter(c => !isShowPartOn(c.part));
+    live.hidden = !cards.length;
+    const sig = cards.map(c => c.part).join(',');
+    if (live.dataset.sig !== sig) {
+      live.dataset.sig = sig;
+      live.innerHTML = cards.map(c => `<div class="invite-card"><strong>${c.icon} ${escapeHtml(c.title)}</strong><span>${escapeHtml(c.text)}</span><button type="button" class="btn emerald" data-add-part="${c.part}">${escapeHtml(c.label)}</button></div>`).join('');
+    }
+  }
+  const flat = document.getElementById('build-flat-card');
+  if (flat) flat.hidden = isShowPartOn('venue');
+}
+
 function initShowParts() {
   if (typeof document === 'undefined' || state.isProjectorRole) return;
   document.getElementById('btn-add-to-show')?.addEventListener('click', () => renderAddToShowList());
+  document.getElementById('live-invites')?.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-add-part]');
+    if (!b) return;
+    const part = b.dataset.addPart;
+    addShowPart(part);
+    if (part === 'mixer' && state.room === 'live' && typeof setLayoutMode === 'function') setLayoutMode('mix');
+  });
+  document.getElementById('btn-add-venue')?.addEventListener('click', () => addShowPart('venue'));
   document.getElementById('add-part-list')?.addEventListener('click', (e) => {
     const b = e.target.closest('[data-add-part]');
     if (!b) return;

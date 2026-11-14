@@ -4039,3 +4039,9 @@
     .add-part-item .ap-text { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
     .add-part-item .ap-text span { color: var(--text-muted); font-size: 10.5px; }
     .add-part-all { margin-top: 8px; font-size: 10.5px; }
+    /* 0.2 Empty rooms invite */
+    .invite-card { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0 0 8px; padding: 12px; border-radius: 10px; border: 1px dashed rgba(111, 211, 255, 0.45); background: rgba(111, 211, 255, 0.05); font-size: 11px; color: var(--text-muted); line-height: 1.45; }
+    .invite-card[hidden] { display: none; }
+    .invite-card strong { color: var(--text-main); font-size: 12px; }
+    .live-invites { display: flex; flex-direction: column; }
+    .live-invites[hidden] { display: none; }

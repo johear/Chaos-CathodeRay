@@ -179,6 +179,11 @@
     <div id="studio-body">
       <!-- ROOM 1 (1 · BUILD): LEFT WORLD BUILDER OUTLINER & GHOSTRIG LAUNCHPADS -->
       <aside id="world-left-dock" class="world-dock-panel scroller" hidden aria-label="World Builder Presets and Physical Outliner">
+        <div id="build-flat-card" class="invite-card" hidden>
+          <strong>Your show is flat</strong>
+          <span>One projector pointing at things. That's all a simple mapping needs. When the room matters (a performer, a set, a facade, more projectors), add the venue.</span>
+          <button type="button" class="btn emerald" id="btn-add-venue">🏛 Add the venue</button>
+        </div>
         <div class="insp-card">
           <div class="insp-title emerald">
             <span>✦ Rig Launchpads</span>
@@ -2168,14 +2173,14 @@
           </div>
         </div>
 
-        <div class="insp-card">
+        <div class="insp-card" data-part="lights">
           <div class="insp-title">
             <span>📡 PJLink Ethernet Projectors (TCP 4352)</span>
           </div>
           <div id="world-pjlink-list" class="world-stack-cards"></div>
         </div>
 
-        <div class="insp-card">
+        <div class="insp-card" data-part="lights">
           <div class="insp-title warm">
             <span>🎛 DMX Shutters &amp; .wmdevice.json Patch</span>
           </div>
@@ -2204,6 +2209,7 @@
 
       <!-- ROOM 3 (3 · LIVE): RIGHT SIMULTANEOUS PERFORMANCE CONSOLE (CUE PLAYBACK, ACTION DECK, SEATS, SPOTS & DMX) -->
       <aside id="live-right-dock" class="live-dock-panel scroller" hidden aria-label="Live Cue Transport, Priority Action Deck, Controller Seats, Optical Spots, and DMX Fader Bank">
+        <div id="live-invites" class="live-invites" hidden></div>
         <div id="live-captured-tray" class="captured-trim-tray" hidden>
           <span class="captured-pill">● CAPTURED (<span id="live-captured-count">0</span>)</span>
           <button type="button" class="btn emerald" id="btn-live-update-cue" style="padding:2px 6px;font-size:9px;">Update Cue</button>
