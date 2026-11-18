@@ -592,6 +592,7 @@ function serializeMultiProjectorState() {
     } : undefined,
     screens: mp.screens.map(s => ({
       index: s.index,
+      aligned: !!s.aligned,
       id: s.id,
       name: s.name,
       enabled: s.enabled !== false,
@@ -661,6 +662,7 @@ function restoreMultiProjectorState(raw) {
   if (typeof ensureStagePlanState === 'function') ensureStagePlanState(mp);
   if (Array.isArray(raw.screens) && raw.screens.length > 0) {
     mp.screens = raw.screens.slice(0, MAX_MULTI_PROJ_SCREENS).map((s, idx) => createProjectorScreenSlice(s.index || (idx + 1), s));
+    mp.screens.forEach((sc, i) => { sc.aligned = !!(raw.screens[i] && raw.screens[i].aligned); });
   } else {
     const grid = computeEdgeBlendGridSlices(mp.layoutPreset, mp.overlapPct, mp.blendGamma);
     mp.screens = grid.slices.map(s => createProjectorScreenSlice(s.index, s));

@@ -27,6 +27,14 @@ function isGeomReach() {
   return state.room === 'map' && !areShapesLocked() && !state.showLock;
 }
 
+// Buttons that move a surface (Center, Fit, Flip, Rotate) obey the same rule as corner drags.
+function canMoveGeometryNow() {
+  if (typeof isBuildRoom === 'function' && isBuildRoom() && !state.showLock) return true;
+  if (isGeomReach()) return true;
+  if (typeof showToast === 'function') showToast(state.room === 'live' ? '📐 Shapes are protected in LIVE — edit them in MAP or BUILD' : '🔒 Shapes are locked — unlock the padlock to move them');
+  return false;
+}
+
 function setShapesLocked(locked, opts = {}) {
   const next = !!locked;
   if (areShapesLocked() === next) { syncShapesLockUI(); return next; }
@@ -62,6 +70,11 @@ function syncShapesLockUI() {
 function initShapesLock() {
   if (typeof document === 'undefined' || state.isProjectorRole) return;
   document.getElementById('btn-shapes-lock')?.addEventListener('click', () => setShapesLocked(!areShapesLocked()));
+  document.getElementById('btn-geom-crop')?.addEventListener('click', () => {
+    if (typeof setStudioRoom === 'function' && state.room !== 'map') setStudioRoom('map');
+    if (typeof setLayoutMode === 'function') setLayoutMode('split');
+    if (typeof showToast === 'function') showToast('✂ Drag the frame in the Input view (left) to choose the part of the picture this surface shows.');
+  });
   document.getElementById('btn-align-done')?.addEventListener('click', () => {
     setShapesLocked(true, { silent: true });
     if (typeof showToast === 'function') showToast('✓ Alignment done — shapes locked. Unlock any time with the padlock.');
@@ -122,7 +135,7 @@ function getNextStepRules() {
       run: () => setShapesLocked(true)
     },
     {
-      id: 'cue', done: () => nCues > 0, show: () => nSurf > 0 && nCues === 0 && state.room !== 'build',
+      id: 'cue', done: () => nCues > 0, show: () => nSurf > 0 && nCues === 0 && state.room === 'map',
       text: 'Happy with this look? Store it as a cue, so you can come back to it.', label: 'Store cue',
       run: () => { if (typeof storeNewCue === 'function') storeNewCue(); if (typeof renderCueList === 'function') renderCueList(); }
     },
@@ -136,8 +149,8 @@ function getNextStepRules() {
 
 function getCurrentNextStep() {
   if (state.isProjectorRole || state.showLock || !areTipsOn()) return null;
-  if (state.room === 'live' && state.activeCueId) return null;
   if (state.room === 'live' && (state.cues || []).length) state._visitedLiveWithCues = true;
+  if (state.room === 'live' && state.activeCueId) return null;
   const done = new Set(state.tipsDone || []);
   for (const r of getNextStepRules()) {
     if (done.has(r.id)) continue;
@@ -227,6 +240,14 @@ function newBlankShow() {
   while (Array.isArray(state.spots) && state.spots.length && typeof removeSpotById === 'function') {
     if (removeSpotById(state.spots[0].id, { silent: true }) === false) break;
   }
+  // Leftovers from whatever was open (often the demo behind the Start screen).
+  const mix = typeof getMixbusSource === 'function' ? getMixbusSource() : null;
+  if (mix && Array.isArray(mix.orbs)) mix.orbs = [];
+  state.dmxDevices = [];
+  if (state.midi && Array.isArray(state.midi.mappings)) state.midi.mappings = [];
+  if (state.floorplan && typeof state.floorplan === 'object') Object.assign(state.floorplan, { enabled: false, dataUrl: '', name: '' });
+  if (state.masterKeystone && typeof state.masterKeystone === 'object') state.masterKeystone.enabled = false;
+  if (Array.isArray(state.worldScreens) && state.worldScreens.length > 1) state.worldScreens.splice(1);
   state.worldProps = [];
   state._worldPropsSeeded = true;
   state.selectedWorldPropId = null;
@@ -245,6 +266,7 @@ function newBlankShow() {
   if (typeof syncWorkflowUI === 'function') syncWorkflowUI();
   if (typeof setStudioRoom === 'function') setStudioRoom('map', { silent: true });
   if (typeof restoreRoomFeedTab === 'function') restoreRoomFeedTab('map');
+  if (typeof setLayoutMode === 'function') setLayoutMode('output'); // one view; Crop opens Input beside it
   if (typeof renderLivePerformanceDockUI === 'function') renderLivePerformanceDockUI();
   syncShapesLockUI();
   syncShowPartsUI(true);
@@ -275,10 +297,10 @@ const SHOW_PARTS = {
   masks: { icon: '✂', label: 'Masks and shutters', blurb: 'Cut shapes out of the light, or trim its edges with straight blades.', keywords: /mask|shutter|blade|cutout/i },
   cues: { icon: '▶', label: 'Cues', blurb: 'Stored looks you can return to — then run them with GO in LIVE.', keywords: /\bcue|\bgo\b|playback|deck|crossfade|t-bar/i },
   followspot: { icon: '🎯', label: 'Followspot', blurb: 'A spot of light you steer live, or that follows a performer.', keywords: /spot/i },
-  venue: { icon: '🏛', label: 'Venue in 3D', blurb: 'The real space: stage, walls, set pieces and people, in 3D.', keywords: /venue|3d|walk|pov|plan|set part|facade|elevation/i },
-  projectors: { icon: '📽', label: 'More projectors', blurb: 'A second projector: a wider or brighter picture, or another object.', keywords: /projector|blend|multi-proj/i },
+  venue: { icon: '🏛', label: 'Venue in 3D', blurb: 'The real space: stage, walls, set pieces and people, in 3D.', keywords: /\bvenue\b|\bwalk\b|\bpov\b|set part|facade|elevation/i },
+  projectors: { icon: '📽', label: 'More projectors', blurb: 'A second projector: a wider or brighter picture, or another object.', keywords: /multi-projector|edge[- ]?blend|second projector|add projector/i },
   mixer: { icon: '◎', label: 'Live mixer', blurb: 'Mix several sources live on the spatial radar.', keywords: /\bmix|radar|orb|constellation/i },
-  lights: { icon: '💡', label: 'Lights (DMX)', blurb: 'Stage lights and hazers controlled over DMX or Art-Net.', keywords: /dmx|art-?net|fixture|hazer|pjlink|led/i },
+  lights: { icon: '💡', label: 'Lights (DMX)', blurb: 'Stage lights and hazers controlled over DMX or Art-Net.', keywords: /\bdmx\b|art-?net|fixture|hazer|pjlink|\bled\b/i },
   controllers: { icon: '🎹', label: 'Controllers', blurb: 'MIDI, OSC and gamepad controls for live performance.', keywords: /midi|osc|gamepad|controller|seat/i }
 };
 const SHOW_ALL_TOOLS_KEY = 'chaoscathode_show_all_tools';
@@ -294,7 +316,7 @@ function detectShowParts() {
   if ((state.masks || []).length || (state.surfaces || []).some(sf => sf && (sf.shutterL || sf.shutterR || sf.shutterT || sf.shutterB))) on.push('masks');
   if ((state.cues || []).length) on.push('cues');
   if ((state.spots || []).length) on.push('followspot');
-  if ((state.venueParts || []).length || (state.worldProps || []).length || (state.workflow && state.workflow !== 'quick2d')) on.push('venue');
+  if ((state.venueParts || []).length || (state.worldProps || []).length) on.push('venue');
   if ((mp.screens || []).length > 1 || mp.enabled) on.push('projectors');
   if (typeof isMixbusOnStage === 'function' && isMixbusOnStage()) on.push('mixer');
   if ((state.dmxDevices || []).length) on.push('lights');
@@ -304,7 +326,9 @@ function detectShowParts() {
 
 function getShowParts() {
   if (!Array.isArray(state.showParts)) return null;
-  for (const p of detectShowParts()) if (!state.showParts.includes(p)) state.showParts.push(p);
+  let added = false;
+  for (const p of detectShowParts()) if (!state.showParts.includes(p)) { state.showParts.push(p); added = true; }
+  if (added && typeof scheduleAutosave === 'function') scheduleAutosave();
   return state.showParts;
 }
 
@@ -353,7 +377,7 @@ function addShowPart(part) {
   } else if (part === 'followspot') {
     if (!(state.spots || []).length && typeof addSpotInstance === 'function') addSpotInstance();
     if (typeof renderLivePerformanceDockUI === 'function') renderLivePerformanceDockUI();
-    say('🎯 Followspot added — pick it up and steer it in LIVE (F3).');
+    say(state.room === 'live' ? '🎯 Followspot added — press PICK UP, then steer it.' : '🎯 Followspot added — pick it up and steer it in LIVE (F3).');
   } else if (part === 'venue') {
     if (state.room !== 'build' && typeof setOutputFeedTab === 'function') setOutputFeedTab('venue3d');
     say('🏛 Venue on — shape the real space in BUILD (F1); the 3D Venue view shows it.');
@@ -391,7 +415,8 @@ function renderAddToShowList() {
 // Search: choosing a tool that belongs to a part that is off turns that part on.
 function enablePartsForPaletteItem(item) {
   if (!item || !Array.isArray(state.showParts) || item.category === 'Rooms') return;
-  const text = `${item.id || ''} ${item.title || ''} ${item.keywords || ''}`;
+  // Title and id only: keyword lists are deliberately broad for search and would switch on too much.
+  const text = `${item.id || ''} ${item.title || ''}`.replace(/_/g, ' ');
   const turnOn = Object.entries(SHOW_PARTS).filter(([k, p]) => !isShowPartOn(k) && p.keywords.test(text)).map(([k]) => k);
   if (!turnOn.length) return;
   enableShowParts(turnOn);
@@ -478,7 +503,15 @@ function carrySelectionAcrossRooms(prevRoom, nextRoom) {
   if (!sel || !sel.kind || nextRoom === 'live' || prevRoom === nextRoom) return;
   if (nextRoom === 'map') {
     const lk = SEL_KIND_TO_LINK[sel.kind];
-    if (!lk) return;
+    if (!lk) {
+      // A rig-only selection (projector, light…) must not stay the "current thing" in MAP, where
+      // ⌫ would delete it: go back to the surface MAP was working on.
+      if (sel.kind !== 'surface' && state.selectedSurfaceId && (state.surfaces || []).some(s => s && s.id === state.selectedSurfaceId) && typeof setActiveSelection === 'function') {
+        const sf = state.surfaces.find(s => s.id === state.selectedSurfaceId);
+        setActiveSelection('surface', sf.id, sf.name);
+      }
+      return;
+    }
     const surf = (state.surfaces || []).find(s => s && s.linkObject && s.linkObject.kind === lk && String(s.linkObject.id) === String(sel.id));
     if (!surf) return;
     if (typeof selectSurface === 'function') selectSurface(surf.id);
@@ -539,7 +572,7 @@ function guardVideoInBlind(src, ask = (msg) => (typeof window !== 'undefined' &&
 // BOOT
 // ----------------------------------------------------------------------------
 function initGrowthUx() {
-  if (state.isProjectorRole) return;
+  if (state.isProjectorRole || state.isMonitorRole) return;
   initShapesLock();
   initNextStep();
   initShowParts();

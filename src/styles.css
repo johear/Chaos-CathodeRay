@@ -4058,3 +4058,5 @@
     .insp-more-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; margin: 2px 0 8px; padding: 6px 10px; text-align: left; }
     .insp-more-btn span { font-size: 9.5px; color: var(--text-muted); font-weight: 400; }
     .insp-more-btn[hidden] { display: none; }
+    .message-strip:not(:has(> :not([hidden]))) { display: none; }
+    body[data-role="monitor"] .message-strip, body[data-role="projector"] .message-strip { display: none; }

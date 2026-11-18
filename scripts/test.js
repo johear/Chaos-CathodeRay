@@ -2808,6 +2808,42 @@ const vmScript = `
     const off = createSurface('quad', { name: 'Lost', points: [[1.2, 1.2], [1.4, 1.2], [1.4, 1.4], [1.2, 1.4]] }); state.surfaces.push(off);
     assert(collectShowCheckItems().some(i => i.id === 'outside-' + off.id), 'Show Check: a surface outside the projector picture');
     state.surfaces = state.surfaces.filter(x => x !== off);
+
+    // Review fixes (0.2 batch).
+    // MAP -> BUILD -> MAP returns to the surface; rig objects can't be deleted from MAP.
+    newBlankShow();
+    const qR = createSurface('quad', { name: 'Q' }); state.surfaces.push(qR);
+    selectSurface(qR.id); setActiveSelection('surface', qR.id, 'Q');
+    setStudioRoom('build', { silent: true });
+    assert.strictEqual(state.activeSelection.kind, 'projector', 'BUILD shows the projector of a flat surface');
+    setStudioRoom('map', { silent: true });
+    assert(state.activeSelection.kind === 'surface' && state.activeSelection.id === qR.id, 'Back in MAP the surface is the current thing again');
+    setActiveSelection('projector', '1', 'Projector P1');
+    const nScr = ensureMultiProjectorState().screens.length;
+    deleteActiveSelection();
+    assert.strictEqual(ensureMultiProjectorState().screens.length, nScr, 'A projector cannot be deleted from MAP');
+    // Aligned flag survives save/load.
+    ensureProjectorCount(2); ensureMultiProjectorState().screens[1].aligned = true;
+    const savedA = serializeShowData(false);
+    importShowJson(JSON.stringify(savedA), true);
+    assert(ensureMultiProjectorState().screens[1].aligned === true && !collectShowCheckItems().some(i => i.id === 'align-2'), 'Projector alignment is saved; the reminder goes away');
+    // The LIVE tip completes even while a cue is active.
+    state.tipsDone = []; state.cues = [storeNewCue()].filter(Boolean); state.activeCueId = state.cues[0] && state.cues[0].id;
+    state.room = 'live'; getCurrentNextStep(); state.room = 'map';
+    assert(state._visitedLiveWithCues === true, 'Visiting LIVE with cues completes the LIVE tip');
+    // Club kit: mixer, not venue; search uses titles, not broad keywords.
+    newBlankShow(); applyWorkflowContext('club');
+    assert(isShowPartOn('mixer') && !isShowPartOn('venue'), 'Club kit = mixer, no venue');
+    enablePartsForPaletteItem({ id: 'spot_toggle', title: 'Toggle Cosmic Cloud Followspot (3D)', category: 'Live', keywords: '3d venue plan dmx' });
+    assert(isShowPartOn('followspot') && !isShowPartOn('venue') && !isShowPartOn('lights'), 'Search: only the part named in the title turns on');
+    // Geometry buttons obey the lock; a blank show drops demo leftovers.
+    state.room = 'map'; state.shapesLocked = true; state.showLock = false; state.liveReachThrough = false;
+    assert(!canMoveGeometryNow(), 'Locked: Center/Flip/Rotate are refused in MAP');
+    state.shapesLocked = false;
+    assert(canMoveGeometryNow(), 'Free: they work');
+    state.dmxDevices = [{ id: 'x' }];
+    newBlankShow();
+    assert(state.dmxDevices.length === 0 && !isShowPartOn('lights') && state.layoutMode === 'output', 'Blank show: no leftover lights, one Output view');
   }
   console.log('✓ [22/22] 0.2 growth UX verified');
   console.log('✓ [21/21] Chaos CathodeRay 0.1 beta: identity & compatibility, Plan/sides/Lines view model, Show Check & problem report verified');

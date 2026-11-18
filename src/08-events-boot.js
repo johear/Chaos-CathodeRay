@@ -256,7 +256,12 @@ function bindAllControls() {
 
   // 2. Topbar Scene, Show JSON & Output Controls
   document.getElementById('btn-demo-scene').addEventListener('click', () => loadDemoScene(false));
-  document.getElementById('btn-new-scene').addEventListener('click', () => loadBlankScene());
+  document.getElementById('btn-new-scene').addEventListener('click', () => {
+    document.getElementById('pop-file-menu')?.hidePopover?.();
+    if (typeof isSessionPristine === 'function' && !isSessionPristine() && typeof openFreshDialog === 'function') openFreshDialog({ blank: true });
+    else if (typeof newBlankShow === 'function') newBlankShow();
+    else loadBlankScene();
+  });
   document.getElementById('btn-save-json').addEventListener('click', () => exportShowJson());
   document.getElementById('btn-pack-wmshow').addEventListener('click', () => exportSelfContainedShowArchive());
 
@@ -1501,6 +1506,7 @@ function bindAllControls() {
   });
 
   document.getElementById('btn-geom-center').addEventListener('click', () => {
+    if (typeof canMoveGeometryNow === 'function' && !canMoveGeometryNow()) return;
     const sel = getSelectedSurface();
     if (!sel || getEffectiveSurfaceProps(sel).locked || state.showLock) return;
     pushUndoCheckpoint('Center Surface');
@@ -1526,6 +1532,7 @@ function bindAllControls() {
     scheduleAutosave();
   });
   document.getElementById('btn-geom-fit').addEventListener('click', () => {
+    if (typeof canMoveGeometryNow === 'function' && !canMoveGeometryNow()) return;
     const sel = getSelectedSurface();
     if (!sel || getEffectiveSurfaceProps(sel).locked || state.showLock) return;
     pushUndoCheckpoint('Fit Surface to Stage');
@@ -1563,6 +1570,7 @@ function bindAllControls() {
     renderSurfaceList(); syncInspectorUI();
   });
   document.getElementById('btn-geom-fliph').addEventListener('click', () => {
+    if (typeof canMoveGeometryNow === 'function' && !canMoveGeometryNow()) return;
     const sel = getSelectedSurface(); if (!sel || getEffectiveSurfaceProps(sel).locked || state.showLock) return;
     pushUndoCheckpoint('Flip Horizontal');
     if (sel.type === 'mesh3d') {
@@ -1585,6 +1593,7 @@ function bindAllControls() {
     scheduleAutosave();
   });
   document.getElementById('btn-geom-flipv').addEventListener('click', () => {
+    if (typeof canMoveGeometryNow === 'function' && !canMoveGeometryNow()) return;
     const sel = getSelectedSurface(); if (!sel || getEffectiveSurfaceProps(sel).locked || state.showLock) return;
     pushUndoCheckpoint('Flip Vertical');
     if (sel.type === 'mesh3d') {
@@ -1607,6 +1616,7 @@ function bindAllControls() {
     scheduleAutosave();
   });
   document.getElementById('btn-geom-rot90').addEventListener('click', () => {
+    if (typeof canMoveGeometryNow === 'function' && !canMoveGeometryNow()) return;
     const sel = getSelectedSurface(); if (!sel || getEffectiveSurfaceProps(sel).locked || state.showLock) return;
     pushUndoCheckpoint('Rotate 90°');
     if (sel.type === 'mesh3d') {
@@ -3886,6 +3896,10 @@ function bindAllControls() {
     else if (e.key === '2') setLayoutMode('input');
     else if (e.key === '3') setLayoutMode('output');
     else if (e.key === '4' || ((e.key === 'v' || e.key === 'V') && !cmdOrCtrl)) {
+      if (typeof isShowPartOn === 'function' && !isShowPartOn('mixer') && typeof enableShowParts === 'function') {
+        enableShowParts(['mixer']);
+        if (typeof showToast === 'function') showToast('◎ Live mixer turned on');
+      }
       setLayoutMode(state.layoutMode === 'mix' ? 'split' : 'mix');
     } else if (e.key === '5') {
       setLayoutMode(state.layoutMode === 'rig' ? 'split' : 'rig');

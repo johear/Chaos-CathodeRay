@@ -31,7 +31,9 @@ Thank you for testing! Chaos CathodeRay is a projection-mapping and show-control
 - **🔓 Shapes free:** drag corners straight onto your objects. This is how a new show starts.
 - **🔒 Shapes locked:** clicks only select. Press **Alignment done ✓** to lock them; hold **W** to nudge one corner anyway.
 
-Kits for plays, rehearsals and facades start locked.
+Kits for plays, rehearsals and facades start locked, and so do shows saved before 0.2. Unlock the padlock to drag corners in MAP, in the Output view as well as the 3D Venue view. While shapes are locked, Center, Fit, Flip and Rotate are locked too.
+
+**✂ Crop** (in the surface panel) opens the Input view beside the Output, so you can choose which part of the picture a surface shows.
 
 **GO only exists in LIVE.** Once your show has cues and an output is open, switching from LIVE to MAP makes your edits **Blind**: the audience keeps seeing the old look until you press **TAKE**, which fades your changes in. While you're still sketching, every edit shows immediately.
 

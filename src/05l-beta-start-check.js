@@ -119,7 +119,8 @@ function collectShowCheckItems() {
     add('warn', 'shapes', 'Shapes are unlocked while the output is on — a stray click in MAP can move a corner', 'Lock',
       () => { if (typeof setShapesLocked === 'function') setShapesLocked(true); });
   }
-  for (const scr of (state.multiProjector?.screens || []).slice(1)) {
+  // Only for shows built with 0.2 growth (older shows and the demo were aligned their own way).
+  for (const scr of (Array.isArray(state.showParts) ? (state.multiProjector?.screens || []).slice(1) : [])) {
     if (!scr || scr.enabled === false || scr.aligned) continue;
     add('info', `align-${scr.index}`, `Projector P${scr.index} isn't aligned yet`, 'Align by points',
       () => { if (typeof setStudioRoom === 'function') setStudioRoom('build'); if (typeof beginProjectorPointAlign === 'function') beginProjectorPointAlign(scr.index); });

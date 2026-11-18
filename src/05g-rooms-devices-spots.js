@@ -1814,6 +1814,10 @@ function deleteActiveSelection() {
     return false;
   }
   let sel = state.activeSelection && state.activeSelection.kind ? state.activeSelection : null;
+  if (sel && !isBuildRoom() && ['projector', 'world_screen', 'world_prop', 'venue_part', 'dmx_device', 'led_fixture'].includes(sel.kind)) {
+    if (typeof showToast === 'function') showToast(`${sel.label || 'That'} belongs to the real space — delete it in BUILD (F1)`);
+    return false;
+  }
 
   // Smart fallback if no explicit selection has been recorded yet
   if (!sel) {
